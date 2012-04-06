@@ -1,0 +1,71 @@
+%&LaTeX
+
+% $Id$
+% $Revision$
+
+\documentclass[10pt]{book}
+
+\include{layout}
+
+\include{defs}
+
+\title{Design Patterns in Perl}
+\author{brian d foy}
+
+\begin{document}
+
+\frontmatter
+
+\maketitle
+
+\pagestyle{headings}
+
+\tableofcontents
+
+	\include{pre-introduction}
+	
+\mainmatter
+
+\part{The building blocks}
+
+	\include{introduction}
+
+	\include{design}
+	
+	\include{perl-features}
+	
+	\include{design-intro}
+	
+\part{The Patterns}
+
+	\include{singleton}
+
+	\include{modified-singleton}
+
+	\include{factory}
+	
+	\include{builder}
+
+	\include{adapter}
+
+	\include{mediator}
+
+	\include{flyweight}
+
+	\include{facade}
+
+	\include{delegation}
+
+	\include{visitor}
+
+	\include{iterator}
+
+\appendix
+
+	\include{reading}
+	        
+	\include{using-cpan}
+	
+\backmatter
+
+\end{document}

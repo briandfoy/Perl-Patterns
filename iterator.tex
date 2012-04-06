@@ -1,0 +1,658 @@
+% $Id$
+\labeledchapter{Iterator}
+
+    \section{Intent}
+
+The Iterator pattern separates the details of traversing a 
+collection so that they can vary independently.
+
+    \section{Motivation}
+
+Iterators are much more apparent as a pattern in languages that do not
+have aggregates as first class objects.  Perl has lists, along with
+the variable types arrays and hashes, and it is trivial to go through
+any of these with built-in Perl structures like foreach, each, map,
+and so on.  The file input operator, $<>$ iterates through the lines
+of the file. The readdir() and glob() functions iterate through
+filenames.
+
+In Perl we do not have to write classes to traverse an array, but we
+do have to write code to go through our own complex data structures.
+The Perl built-in control structures, like foreach(), map(), and grep,
+do not define an interface that objects can use to control the
+iteration.  They take a list, and we have to know what all of the
+elements of the list at the same time. A data structure might not even
+exist---the elements might be represented by an algorithm that
+determines the next element so that the object does not have to store
+all of the elements.
+
+Iterators have three parts:  the {\it data}, the {\it iterator} that
+defines the traversal order, and the {\it controller} which invokes
+the iterator.
+
+The logic has to know at least two things:  how to get the next
+element and when no more elements are available.  Depending on the
+type of traversal, it may also need to know something about its state
+or the order it should follow. The controller uses this logic through
+some sort of interface, which may or may not be apparent, to interact
+with the data.
+
+Since we separate each of these things when we use this pattern, we
+can easily change any one of them without affecting the others since
+they are {\it loosely coupled}.  We reduce their dependence on other
+to give oursevles more flexibility and to improve the reusability of
+our code.
+
+For instance, we can change the traversal from depth-first to
+breadth-first, and the controller says the same if it uses the same
+interface.  We can use the same controller for other iterators with
+the same interface, or the same interface with other controllers,
+which gives us more choices if we decide we need to change something.
+
+    \section{Types of iterators}
+    
+Iterators come in two types: those where the something else controls
+the iteration, called {\it external iterators}, and those where
+the iterator controls itself, called {internal iterators}.  Which one
+you decide to use depends on what you need to do.  As the implementor
+of the iterator you have to do about the same amount of work in either
+case.  Other programmers benefit, or suffer, from which one you
+decide to use.
+
+    \subsection{Internal iterators}
+    
+With internal iterators, we tell a method or function to perform some
+operation on each element of a collection.  In this case you already
+know that you will have to visit most or all of the elements, and as
+long as you do that you do not care how it happens.  Internal iterators
+often combine the controller and iterator aspects into a single thing
+which simplifies the life of the programmer who uses the iterator in his
+code.
+
+The map() and grep() built-in functions are internal iterators.  They
+go through all of the elements in the data independent of our control.
+We give these functions a bit of code that they apply to each of the
+elements in a list.  The map() function returns a list of values based
+on the original list, and the grep() function returns a list of values
+from the original list that satisified a condition.  The controller
+and iterator parts are part of the perl core.
+
+\begin{quote}
+\begin{verbatim}
+my @squares = map { $_ * $_ } 0 .. 10;
+
+my @odds = grep { $_ % 2 } 0 .. 100;
+\end{verbatim}
+\end{quote}
+
+We could rewrite these examples with foreach(), which is a different
+controller, but then we also have to add more code to build the list
+we want to save.  The map() and grep() functions save us time because
+they assume that we want to go through all of the elements.
+
+When you use the File::Find module, you let its find() function
+iterate through the directories on its own, and it applies the
+call_back function to each file as it finds it.
+
+\begin{quote}
+\begin{verbatim}
+#!/usr/bin/perl
+use File::Find ();
+
+File::Find::find( { wanted => \&wanted }, '.' );
+
+sub wanted 
+	{
+    print "$File::Find::name\n" if /^.*\.tex\z/s;
+	}
+\end{verbatim}
+\end{quote}
+
+Modules which implement composite data structures can define
+methods to iterate over all of its elements to perform an
+operation, such as a call back function or a Visitor object.
+The Netscape::Bookmarks module represents the information in
+a Netscape bookmarks file, usually stored in HTML on a local
+computer, in a data structure so you can do interesting things 
+with the data such as spell-checking, re-arranging, importing
+new links, converting formats, or link checking.  On the insides
+it is a collection of different objects from the Netscape::Bookmarks
+classes Category, Link, Separator, and Alias.
+
+
+The Netscape::Bookmarks::Category module provides a recurse() function
+that applies a call\_back routine to every element in the category and
+below, as well as an introduce() routine that passes its elements
+one-by-one to a Visitor object.  The module handles the details of 
+the iteration and the controller for us.
+
+\begin{quote}
+\begin{verbatim}
+use Netscape::Bookmarks;
+
+my $bookmarks = Netscape::Bookmarks->new( $file );
+
+$bookmarks->recurse( \&call_back );
+
+$bookmarks->introduce( $visitor );
+\end{verbatim}
+\end{quote}
+
+Classes define internal iterators to handle tasks for us when we
+need to operate on every element of the collection in a uniform
+matter.  All of the elements are treated the same way and when
+the iterator is done with one it automatically moves on to the
+next one.
+
+    \subsection{External iterators}
+
+You probably use external iterators all the time without even
+knowing it.  When you control the iteration, you are using an
+external iterator.  Since the list is a fundamental Perl
+concept, Perl naturally has lots of features to work with
+lists, and lots of external iterator idioms.
+
+To go through the elements of a list, you can use the foreach()
+control structure as an external iterator.  You control the
+iterator because you have the ability to skip items (with next),
+stop the iteration (with last).
+
+\begin{quote}
+\begin{verbatim}
+foreach my $link ( $bookmarks->elements )
+    {
+    ...
+    }
+\end{verbatim}
+\end{quote}
+    
+Some collections do not exist as lists and must be accessed
+explicitly one at a time.  The while() control structure handles
+the iteration by repeatedly fetching the next element to process.
+In this case, you have to know how to get the next element.  The
+DBI interface returns rows from a record set one at a time through
+the fetchrow_array() method.
+
+\begin{quote}
+\begin{verbatim}
+use DBI;
+
+my $dbh = DBI->new(...);
+my $sth = $dbh->prepare(...);
+
+while( my @row = $sth->fetchrow_array )
+    {
+    ...
+    }
+\end{verbatim}
+\end{quote}
+    
+The line input operator is an iterator. 
+We can even mess with the black magic of the filehandle
+iterface to use the line input operator to iterator over things that
+are not really files, as we see later in this chapter.
+    
+\begin{quote}
+\begin{verbatim}
+while( <STDIN> )
+    {
+    ...
+    }
+\end{verbatim}
+\end{quote}
+
+Since we control external iterators, we can use more than iterator at
+the same time.  If we want to compare two files, for instance,
+we can use the line input operator on two different filehandles
+at the same time.  Each time you go through the while loop you
+get the next item from each of the iterators.
+
+\begin{quote}
+\begin{verbatim}
+while( my ( $old, $new ) = (scalar <OLD>, scalar <NEW>) )
+    {
+    ...
+    }
+\end{verbatim}
+\end{quote}
+
+We also use external iterators when all of the of the data cannot or
+should not be in memory at the same time. If you work with a tied DBM
+hash, your hash represents possibly large numbers of keys and values
+stored on disk.  Since the elements of the hash are not in memory, you
+have a saving in space.  If you use the keys() or values() functions
+those potentially large numbers of keys or values are now stored in
+memory, negating your savings. The each() iterator fetches one
+key-value pair at a time.
+
+\begin{quote}
+\begin{verbatim}
+while( my($key, $value) = each %DBM )
+    {
+    ...
+    }
+\end{verbatim}
+\end{quote}
+        
+We do not necessarily need modules and classes to create iterators
+either.  We can use a closure to hold all of the information.
+If we wanted to iterate over odd numbers, an infinite series
+which we cannot ever completely store in memory, we can
+create a closure that returns the next odd number each time we
+call it.  It maintains its own state and we avoid all of the 
+overhead of method lookups.  We show more on this later.
+
+\begin{quote}
+\begin{verbatim}
+my $odds = do { my $next = -1;  sub { $next += 2; return $next } };
+
+while( my $number = $odds->() )
+    {
+    ...
+    }
+\end{verbatim}
+\end{quote}
+    
+    \section{Iterator interfaces}
+    
+    \subsection{Complex data structures}
+    
+The Netscape::Bookmarks module stores its data as a tree which is natural
+since Netscape Navigator presents the collection as a tree in its interface.
+The programmer who uses the module can figure out how to traverse this
+structure himself (which is not very difficult), but its such a common
+task that the module provides two functions to do it for you.
+
+The recurse() function goes through the data structure depth first. For
+each item the programmer can perform some sort of calculation with
+a call back function.
+
+The introduce() function does the same thing, but uses a Visitor
+object instead of a callback.
+
+    \subsection{Object methods}
+    
+Some modules save memory by computing elements only when needed,
+or have to fetch data on request from remote sources, like our
+earlier DBI example.  In these cases the object has a method
+which returns the next element.
+
+
+The Set::CrossProduct module lets you deal with all of the combinations of
+two or more lists.  For instance, for the lists (a,b) and (1,2) you
+have the combinations (a, 1), (a, 2), (b, 1), (b, 2).  The number of
+combinations is (at most) the product of the number of elements in
+each list, which means that the number of elements can be very large
+for even a small number of moderately sized lists.  Five lists of five
+items means over 3000 combinations.  Instead of storing all of those
+combinations, the module simply stores the lists and keeps track of
+which combination it need to make next.  It provides a next() method
+that lets the external iterator fetch the next value, while we provide
+the controller.
+
+\begin{quote}
+\begin{verbatim}
+use Set::CrossProduct;
+
+my $cross_product = Set::CrossProduct->new();
+
+while( my $item = $cross_product->next )
+    {
+    ...
+    }
+\end{verbatim}
+\end{quote}
+
+\subsubsection{When is an iteration finished?}
+
+The method interface has a problem---how do I know when no
+more elements are available?  The interface has to signal to
+the controller that the iterator has gone through all of the
+elements.  
+
+A false value does not always work.  The line input operator,
+for instance, uses undef to signal the end of input.  Any
+value besides undef comes from the data source.  I test
+specifically for the undef value to see if the input is
+finished.
+
+\begin{quote}
+\begin{verbatim}
+while( defined( $line = <STDIN> ) )
+	{
+	...
+	}
+\end{verbatim}
+\end{quote}
+
+If the undef value is a valid value, I cannot use it to signal
+the end of the iteration.  I might be able to use another value 
+that does not cannot appear in the data, but if any value is
+valid, I cannot use inspection to decide what to do.
+
+I could design an iterator to have another method which tells
+me the state of the iteration.  I check this method before 
+I attempt to fetch the next element.  If the has\_more\_elements
+method returns false, I stop the iteration.
+
+\begin{quote}
+\begin{verbatim}
+while( $iterator->has_more_elements )
+	{
+	$item = $iterator->next;
+	...;
+	}
+\end{verbatim}
+\end{quote}
+
+More Perl-like methods work too.  I can always return a reference to the data instead of the data
+itself. If the iterator returns a non-reference, then no more elements
+are available.  The interface is the almost the same as \ref{} since a
+reference is always true, even if the data it points to would evaluate
+to false.
+
+If the next() method always returns a reference, perhaps an array
+reference, we can tell the difference between undef and the anonymous
+array of one element that contains the undef value.
+
+\begin{quote}
+\begin{verbatim}
+while( $iterator->next )
+	{
+	$item = $iterator->next;
+	...;
+	}
+\end{verbatim}
+\end{quote}
+
+\subsection{Iterate}
+
+The Iterate module defines some controllers for these sorts of 
+interfaces so we can interact with the object just like we do
+with lists for foreach(), map(), and grep().  It defines
+iterate, igrep, and imap which look almost just like the
+perl built-in functions, but takes an object.
+
+\begin{quote}
+\begin{verbatim}
+use Iterate qw(iterate igrep imap);
+
+iterate { print "$_\n" } $cross_product;
+
+my @output = imap { } $cross_product;
+
+my @filtered = igrep { } $cross_product;
+\end{verbatim}
+\end{quote}
+    
+Each of these functions goes through all of the elements of the
+object through the objects interface.  Without hints from the
+object, the Iterate module uses the methods __next__ and __more__
+to get the next element and determine if more elements exist.  The
+object's class has to implement these methods itself, so the three
+controllers work with any object that follows the interface.  The
+control, iteration, and data are separate.
+
+XXX: show the implementation of iterate
+
+    \subsection{Closures}
+
+Objects are data with behavior.  Closures are behaviour with data, so 
+they make handy iterators.  We combine the data and iterator portion
+to create the closure.
+
+XXX: need an example
+
+    \subsection{Tied scalars}
+
+Tied scalars must have a FETCH method, but nothing specifies what
+we have to do or which data we have to return with that method.  The
+Tie::Cycle module ties an anonymous array to a scalar so that each
+time you access the scalar's value, you get the next item from the 
+array.  When you get to the end of the array it goes back to the
+beginning.  The controller is the use of the scalar on the right-hand
+side of an expression, the FETCH method defines the iterator, and the
+anonymous array stores the data.
+
+I initially created Tie::Cycle to handle alternating colors in rows
+of HTML tables.  I grew weary of creating bugs when I changed the
+colors or the number of colors and the amount of distracting code
+that had to go into calculating an index that stayed within the
+bounds of the defined elements of an array.  All I wanted was the
+next color, and I wanted that to be simple.  Tie::Cycle handles
+the annoying parts for me, and I can reuse it wherever I need it.
+
+\begin{quote}
+\begin{verbatim}
+use Tie::Cycle;
+
+tie my $colors, 'Tie::Cycle', [qw(aaaaaa cccccc ffffff)];
+
+while( $sth->fetchrow_array )
+    {
+    my $row_color = $colors;
+    
+    print <<"HTML";
+<tr>
+    <td bgcolor="$row_color">
+    ...
+    <td>
+</tr>
+HTML
+    }
+\end{verbatim}
+\end{quote}
+
+    \subsection{Tied filehandles}
+
+You can attach almost any data to a filehandle with the tie.  You
+have to implement some of the functionality yourself, such as
+determining what the next ``line'' is, but once you have done
+that little bit of work you can use all of Perl's filehandle
+iteration framework to handle the traversal.
+
+This example ties a normal scalar to a filehandle so you
+can read the scalar line-by-line or one character at a time.
+The READLINE function defines how to read a line (or several
+lines in list context), and the GETC function defines how
+to read one character.  Perl uses READLINE when you use the
+file input operator $<>$ and GETC when you use the getc()
+function.  In each case, the module removes the pice that
+we read, so our scalar gets shorter and shorter (unless we
+add to it by some other means, which we might want to do
+if we create an in-memory buffer).
+
+We can decide how to read our lines.  In this case, we avoid
+an annoying chomp by not returning the current value of the
+input record separator, \$/ (a newline by default, but maybe
+something different).
+
+\begin{quote}
+\begin{verbatim}
+package Scalar::Iterator;
+
+sub TIEHANDLE
+    {
+    my( $class, $text ) = @_;
+    
+    bless \$text, $class;
+    }
+        
+sub READLINE
+    {
+    my $self = shift;
+    
+    my $EOL = $/;
+    if( length $$self > 0 )
+        {
+        my @lines = ();
+        
+        while( length $$self > 0 )
+            {
+            $$self =~ s|(.*?)$EOL||s;
+            print "Matched $1\n";
+            push @lines, $1;
+            last unless wantarray;
+            }
+
+        return wantarray ? @lines : $lines[0];            
+        }
+    else
+        {    
+        return;  # undef signals the end
+        }
+    }
+    
+sub GETC
+    {
+    my $self = shift;
+    
+    return $1 if $$self =~ s|(.)||s;
+    
+    return;  # undef signals the end
+    }
+\end{verbatim}
+\end{quote}
+
+We can now treat a scalar just like a filehandle.
+
+\begin{quote}
+\begin{verbatim}
+use Scalar::Iterator;
+
+my $data = ...;
+
+tie *MY_DATA, 'Scalar::Iterator', $data;
+
+my $line = <MY_DATA>;
+print "Got one line [$line]\n";
+
+my $char = getc( MY_DATA );
+print "Got next character [$char]\n";
+
+print "Got rest of lines:\n", <MY_DATA>;
+
+\end{verbatim}
+\end{quote}
+
+We change the way that we traverse the scalar.  We can change
+what we mean by ``'line'' and ``char'' to be something else.  After
+all, the computer does not really know what these things are.  Let's
+change READLINE to read the next sentence, and GETC to read the next
+word.  This is more complicated than it sounds if we wanted to do this
+to arbitrary text, so you have to do more work than we do for the
+general case.
+
+Ever wanted to put a regular expression into \$/?  Well, now you can.
+We conveniently used \$EOL as the end-of-line marker in our example,
+and we put it at the end of our regular expression in READLINE.  If
+we put regular expression special characters in there, our s/// operator
+will interpret them as regular expression sorts of things.  In this 
+case we think we have reached the end of the sentence when we run
+into the next punctuation character in the class [.!?].  This time
+we include the end-of-record marker, the sentence ending punctuation,
+with the sentence. At the same time we collapse all whitespace to a single
+linear space.
+
+We have to make a minor change to make GETC read words.  Let's pretend
+that words only have alphabetic characters and ignore special cases
+like contractions, abbreviations, and hyphenated words.  In that case,
+GETC only has to return the next sequence of letters while skipping over
+non-alphabetic characters it finds first.
+
+Our data has not changed.  It still can be anything that we like, but
+we can easily change how we go through it.  Since all the bits of the
+iterator stay separate from the object (not really an instance, in this
+case).  If we decide to change how we go through the object, the iterator
+is the only thing that changes.  We can even define several different
+iterators and use them at the same time if we like.  We don't have to do
+much more work to turn our sentence reader into a paragraph reader, and 
+so on.
+
+\begin{quote}
+\begin{verbatim}
+sub READLINE
+    {
+    my $self = shift;
+    
+    my $EOL = '[.!?]';
+    if( length $$self > 0 )
+        {
+        my @lines = ();
+        
+        while( length $$self > 0 )
+            {
+            $$self =~ s|(.*?$EOL)||s;
+            my $sentence = $1;
+            $sentence =~ s/\s+/ /g;
+            push @lines, $sentence;
+            last unless wantarray;
+            }
+
+        return wantarray ? @lines : $lines[0];            
+        }
+    else
+        {    
+        return;  # undef signals the end
+        }
+    }
+    
+sub GETC
+    {
+    my $self = shift;
+    
+    return $1 if $$self =~ s|[^a-z]([a-z])||i;
+    
+    return;  # undef signals the end
+    }
+\end{verbatim}
+\end{quote}
+
+Now that you know about tied filehandles, you should be able to imagine
+infinite uses for them: return chunks of HTML or XML, etc., but beware---tied
+filehandles can be very slow.  From ease-of-use, flexibility, and speed, you
+only get to choose two.
+
+    \section{Perl Modules which represent iterators}
+    
+Besides the modules we used as examples, several other modules express the
+Iterator design pattern.
+
+    \subsection{XML::?}
+    
+    \subsection{DBI}
+
+The DBI module provides an abstract interface to databases regardless
+of their type---flat-file, relational, and so on.  When we search a 
+data source for matching records, the DataBase Driver (DBD) returns
+a statement handle (\$sth in the DBI docs) which points to a set
+of records that match.
+
+    \subsection{File::ReadBackwards}
+
+The File::ReadBackwards is a simple iterator that gives you the lines
+from a file one at a time, only starting at the end and working its
+way to the beginning. You can use its object interface or its tied
+filehandle interface.  You supply the external iterator.
+
+    \subsection{Tie::DirHandle}
+
+The Perl built-in function readdir() is an iterator. In scalar context
+it gives us the next filename from the directory handle, and in list
+context give us back all of the filenames.  It defines the logic of
+the traversal and we supply the iterator ( a while loop, grep, etc.).
+This modules hides the readdir() behind the scenes so we can use the
+filehandle iterators to interact with the directory handle.  We get
+the next filename with the line input operator instead of readdir(),
+which means we only have to specify the dirhandle when we tie the
+handle and can forget about it otherwise.
+    
+    \subsection{Tie::IxHash}
+
+Normally, hashes do not preserve the order of the elements you add to
+them.  Perl stores the key-value pairs in a, well, hash tree, for easy
+lookup. Several modules, including Tie::IxHash, remember the order of
+hash operations, including addition of keys, so you can get the keys
+back in the order that you added them.  It uses a tied hash to define
+the logic of traversal, and you can then use the standard Perl (external)
+iterators to traverse the hash.

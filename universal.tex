@@ -1,0 +1,319 @@
+% $Id$
+
+    \section{UNIVERSAL}
+
+Every Perl object is ultimately derived from a special base class
+named UNIVERSAL, which is the same sort of thing as Object in
+SmallTalk or java.lang.Object in Java.  Every class and object
+automatically inherits from UNIVERSAL even though we do not have to
+explicitly state this inheritance.  The UNIVERSAL package is the root
+of every inheritance tree.
+
+\begin{center}
+XXX: image ?
+\end{center}
+
+This package defines several methods that can be used on any object or
+class to do minimal introspection on those objects.  We discover
+various properties of classes and objects through the methods defined
+in UNIVERSAL, as well as apply our own ideas of objects by extending
+it.
+        
+        \subsection{can}
+
+The can() instance method takes a method name as an argument and
+returns TRUE if that object knows it can call that method, and FALSE
+otherwise. It uses perl's internal method lookup code.
+
+\begin{quote}
+\begin{verbatim}
+my $input = LWP::Simple->new;
+
+if( $input->can( 'head' ) )
+    {
+    # do something interesting.
+    }
+\end{verbatim}
+\end{quote}
+
+If can() returns FALSE, that does not necessarily mean that the object
+cannot call this method---only that it does not know that it can.  See
+the discussion of the Autoloader for some examples of these ``hidden''
+methods.
+
+We may use this method to figure out which objects we want to affect. 
+Suppose that we want to print any objects that can be printed as a
+string.
+
+\begin{quote}
+\begin{verbatim}
+my @printable_objects = grep { $_->can( 'as_string' ) } @objects;
+
+foreach( @printable_objects }
+    {
+    print "$_\n", $_->as_string, "\n";
+    }
+\end{verbatim}
+\end{quote}
+
+        \subsection{isa}
+
+The isa() instance method takes a package name as an argument and
+returns TRUE if the object is blessed into that class or any
+superclass of it, and FALSE otherwise.  This is a lot better than
+simply checking the object type with ref().
+
+	my $class = ref $object;
+	
+The ref() function only tells you which class the object is blessed
+into.  If you use it to check if the object can do a certain task or
+should be used in a certain way, you need to check more than its
+class.  The example in the Banyard Object-Oriented tutorial (the
+perlboot man page) creates an Animal class, and then Horse, Cow,
+and Sheep classes which inherit from animals.  If we need to feed
+all of the animals, we do not care which concrete class they are in,
+only that they are Animals.
+
+\begin{quote}    
+\begin{verbatim}
+foreach my $object ( @objects )
+	{
+	$object->eat if $object->isa('Animal');
+	}
+\end{verbatim}
+\end{quote}
+	
+We also do not have to know about changes to the types of Animals
+we might have.  If we want to feed all of the Sheep, we might
+say
+
+\begin{quote}    
+\begin{verbatim}
+foreach my $object ( @objects )
+	{
+	$object->eat if $object->isa('Sheep');
+	}
+\end{verbatim}
+\end{quote}
+
+and even if we have different sorts of Sheep subclasses (BlackSheep,
+Lambs, Rams, Ewes), all of the Sheep still get to eat.  That is,
+we do not have to know about all of the sub-classes ahead of time.
+We only have to know that the subclass comes from the class that
+we care about, and since it inherits from that class we expect it
+to act the same (or close it).  The programmer can add subclasses
+without our permission.
+
+You can also use a special two argument form of isa() to check the
+variable type to which an unblessed reference  (that is, a reference
+that is not an object) points.  This is close the \todo{what do i need
+to write here} indirect object notation where the first argument to
+the method is the object itself.  In this case you cannot call methods
+on unblessed references so this notation is the only one you can use.
+
+\begin{quote}    
+\begin{verbatim}
+my $array_ref = [ qw( 1 2 3 ) ];
+
+if( UNIVERSAL::isa( $array_ref, 'ARRAY' ) )
+    {
+    print "@$array_ref\n";
+    }
+\end{verbatim}
+\end{quote}
+
+
+For example, if you had a collection of objects and you wanted to extract
+all of the objects that are of a particular type, say array references, you
+could use isa() as a grep() condition.
+
+\begin{quote}    
+\begin{verbatim}
+
+my @arrays = grep { UNIVERSAL::isa( $_, 'ARRAY' ) } @objects;
+
+\end{verbatim}
+\end{quote}
+
+We use this technique when one object contains or controls many other
+objects and wants to affect all of its subservient objects of a particular
+type, such as in the patterns \todo{insert pattern names}.
+
+\begin{quote}    
+\begin{verbatim}
+foreach( grep { UNIVERSAL::isa( $_, 'Foo' ) } @objects )
+    {
+    $_->update unless $_->status;
+    }
+\end{verbatim}
+\end{quote}
+
+The CGI.pm module uses this technique to discover if some of its
+methods received a FILEHANDLE or a GLOB in its argument list.
+
+\begin{quote}    
+\begin{verbatim}
+sub to_filehandle {
+    my $thingy = shift;
+    return undef unless $thingy;  
+    return $thingy if UNIVERSAL::isa($thingy,'GLOB');
+    return $thingy if UNIVERSAL::isa($thingy,'FileHandle');
+    if (!ref($thingy)) {  
+        my $caller = 1;
+        while (my $package = caller($caller++)) {
+            my($tmp) = $thingy=~/[\':]/ ? $thingy : "$package\:\:$thingy";
+            return $tmp if defined(fileno($tmp));
+        }     
+    }         
+    return undef;
+}
+\end{verbatim}
+\end{quote}
+
+        \subsection{Getting the class name}
+
+If you need to get the class name for an object, you can use the
+perl built-in ref() function.
+
+        \subsection{Testing an instance}
+        
+You may want to test an reference to see if it is an instance of a 
+class.  All objects inherit from the UNIVERSAL package so you
+only need to check to see if the object has UNIVERSAL in its
+ISA chain.  Since you cannot call methods on references, you
+cannot use the method form of isa().  You have to use the
+function version instead.
+
+\begin{quote}
+\begin{verbatim}
+	my $is_object = UNIVERSAL::isa( $reference, 'UNIVERSAL' );
+\end{verbatim}
+\end{quote}
+
+If you like, you can import the functions from UNIVERSAL:
+
+\begin{quote}
+\begin{verbatim}
+	use UNIVERSAL qw( isa can );
+	
+	my $is_object = isa( $reference, 'UNIVERSAL' );
+\end{verbatim}
+\end{quote}
+	
+
+        \subsection{Adding methods to UNIVERSAL}
+        
+We can directly affect any class we want because Perl is not a bondage
+and discipline language.  Although most of the uses we have thought up
+for this, one very useful trick is to add methods to UNIVERSAL so that
+we can interact with all objects in a particular way.  We have to be
+very careful when we do this though since subclasses may redefine the
+method that we create.
+
+Before perl5.004, the UNIVERSAL package had two convenience methods,
+class() and is\_instance().  The is\_instance function did the same
+thing that we did when we tested a reference to see if it was an
+instance.  We can add these functions anywhere in our code, so
+you should not modify the UNIVERSAL.pm file itself---not everyone
+has your modified version of the standard module, and you have to
+re-edit the file everytime you upgrade.
+
+The trick of these functions is the difference in behavior of
+regular references and objects.  You cannot call methods on
+references, and you do not want your code to blow up if you
+do.  The is\_instance() and class() functions should tell
+the difference between the two and do the right thing.  Once
+you code it, you should not have to code it again.
+
+The is\_instance() function only returns true if the object
+is an instance.  We can safely assume that package names will
+not be '0', the only non-trivial false value.  If you do have 
+a package name '0', you have more problems than this book can
+solve.
+
+\begin{quote}
+\begin{verbatim}
+sub UNIVERSAL::is_instance;
+	{
+	my $arg = shift;
+	
+	return unless ref $arg;
+	
+	return UNIVERSAL::isa( $arg, 'UNIVERSAL' );
+	}
+\end{verbatim}
+\end{quote}
+
+
+The class() function returns the class name of the object, or FALSE if 
+the argument is not an object.  If we used the ref() function, we
+would get a TRUE value for any reference whether or not the thingy
+was blessed into a class.  In this case, we want to assume all of
+those are false values without having to enumerate all the sorts 
+of references (test yourself to see if you can to find out how
+many you would miss)\footnote{ SCALAR, ARRAY, HASH, CODE, REF, GLOB,
+Regexp }.
+
+
+\begin{quote}
+\begin{verbatim}
+sub UNIVERSAL::class
+	{
+	my $arg = shift;
+	
+	return unless UNIVERSAL::is_instance( $arg );
+	
+	return ref $class;
+	}
+\end{verbatim}
+\end{quote}
+
+We can do the same thing in two steps if we like:
+
+\begin{quote}
+\begin{verbatim}
+my $class = UNIVERSAL::is_instance( $arg ) ? ref $arg : '';
+\end{verbatim}
+\end{quote}
+	
+but you show your intent and spend less typing with
+
+\begin{quote}
+\begin{verbatim}
+my $class = UNIVERSAL::class( $arg );
+\end{verbatim}
+\end{quote}
+
+We can also add much more interesting methods to UNIVERSAL.  If
+we want every object to have a debug() method, even if the 
+author of the module did not provide one, we add one to UNIVERSAL
+(although not to the UNIVERSAL.pm file).
+
+\begin{quote}
+\begin{verbatim}
+sub UNIVERSAL::debug
+    {
+    require Data::Dumper;
+    
+    my $self = shift;
+    
+    my $class = ref $self;
+    
+    print "-" x 50", Object $class from caller foo\n";
+    print Dump( $self );
+    }
+\end{verbatim}
+\end{quote}    
+
+Once we have created this method, all objects can call it.  If an object
+is an instance of a class that already has a debug method, then it will use 
+that method since Perl finds it first as it traverses the ISA tree.
+No matter which object we have, we can now always say
+
+\begin{quote}
+\begin{verbatim}
+$object->debug
+\end{verbatim}
+\end{quote}    
+
+ 

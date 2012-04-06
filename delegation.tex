@@ -1,0 +1,32 @@
+% $Id$
+\labeledchapter{Delegation}
+
+    \section{Abstract}
+
+Delegation sends the right message to the right objects at the right time
+without forcing us to decide all of that.
+
+    \section{Motivation}
+    
+Various things occur during the course of a program -- we might call those
+things events.  Certain objects may wish to do various things if a certain
+event occurs.  Furthermore, more than one object may want to do something
+with the same event.  The Delegator may or may not know ahead of time which
+objects will want to respond to a particular message.
+
+    \section{Perl modules which implement delegation}
+    
+\begin{itemize}
+\item Class::Delegate
+\item Class::Delegation
+\end{itemize}
+
+    \section{Illustration of use}
+    
+Some example use of delegation.
+
+    \section{How the design works behind the scenes}
+
+This design does its magic by recognizing the event with one object.  That
+object then sends messages to all of the interested objects.  Its like an 
+object repeater.

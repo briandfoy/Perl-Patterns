@@ -1,0 +1,13 @@
+General Discussion
+http://www.norvig.com/design-patterns/
+
+Catalogs of Patterns
+http://www.cise.ufl.edu/research/ParallelPatterns/PatternLanguage/TOC.html
+http://www.cs.wustl.edu/~schmidt/OOPSLA-95/html/papers.html
+http://www.edatamirror.com/openloop/softwareEngineering/patterns/designPattern/
+
+Pipeline
+http://tutorials.findtutorials.com/read/id/134
+
+IOU
+http://www.ddj.com/documents/s=960/ddj9606d/9606d.htm

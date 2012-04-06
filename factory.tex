@@ -1,0 +1,141 @@
+% $Id$
+\labeledchapter{Factory}
+
+    \section{Abstract}
+
+One class creates one of more instances of other classes.
+
+    \section{When to use a Factory}
+    
+\begin{itemize}
+\item You want to delay choosing a class until you look at the
+    argument list of the constructor
+\item You want to use different classes depending on the state
+    of the program
+\item You want to choose from among many options, some of which
+    may not be available all of the time
+\item You want to decide as late as possible which class to use,
+	although you still want a unified interface
+\item You have many polymorphic classes you might use, but you
+	do not need to know which one you ended up using
+\item You might use one of several classes with the same
+	interface
+\end{itemize}
+
+\section{Illustration of use}
+
+I had to create a framework for an application that made general
+health assessments about the user based on personal information
+that he entered.  When I started the project the application only had
+a web interface, although I needed to change things around so that
+the user interface was separate from the code.  Additionally, I 
+had to separate the framework into five different major assessments.
+Each assessment would know nothing about the interface to calculate
+some health numbers, and an application could use any one of the
+assessments, and possibly more assessments that would be added later.
+Futhermore, some assessments might be absent based on licensing
+arrangements with certain customers.
+
+The existing code did something similar to the following code.
+
+\begin{quote}
+\begin{verbatim}
+
+my $health;
+if( $assessment eq 'Diabetes' )
+	{
+	require Health::Diabetes;
+	$health = Health::Diabetes->new()
+	}
+elsif( $assessment eq 'Cardiac' )
+	{
+	require Health::Cardiac;
+	$health = Health::Cardiac->new()
+	}
+elsif( $assessment eq 'Cardiac' )
+	...
+\end{verbatim}
+\end{quote}
+
+Notice that each assessment required explicit code to initialize
+it.  A programmer would have to more explicit code to use another
+assessment, or take away code to prevent the use of an assessment.
+
+Since an application needed to be able to interact with one of
+several assessments, and it did not know until it started which
+assessment it could use, I decided to use a Factory.  All assessments
+would start with identical interfaces, and each assessment would be
+represented by its own module.  The application would be able to use
+the module if it were present, but not otherwise, and the application
+should not have to worry about any of this logic.
+
+I started with five module, which I will call Diabetes.pm, Cardiac.pm,
+General.pm, Wellness.pm, and Fitness.pm, but I created one module, Health.pm, 
+to act as a Factory.
+
+The application could choose an assessment through Health.pm.
+
+\begin{quote}
+\begin{verbatim}
+use Health;
+
+my $health = Health->new( assessment => 'Diabetes' );
+\end{verbatim}
+\end{quote}
+
+The object that {\tt Health->new} returned is blessed into another
+class, in this case Health::Diabetes.  The application does not
+know this.  Health.pm documents the interface of the assessment
+modules, and as long as the application follows the interface then
+it does not need to know anything else about the object.
+
+Inside the Health::new method I used some fairly simple code to
+choose an assessment module.
+
+\begin{quote}
+\begin{verbatim}
+package Health;
+
+use vars qw( %Classes );
+
+# created dynamically # XXX
+%Classes = (
+    DRC    => 'Health::DRC',
+    FIT    => 'Health::FIT',
+    CRC    => 'Health::CRC',
+    HRA    => 'Health::HRA',
+    GWB    => 'Health::GWB',
+    );
+
+sub new
+    {
+    my( $class, $args ) = @_;
+
+    eval( "require $Classes{ $args->{assessment} }");
+    croak( "Error loading " . $Classes{ $args->{assessment} } .
+        "\n$@" ) if $@;
+
+    bless $args, $Classes{ $args->{assessment} };
+
+    return $args;
+    }
+\end{verbatim}
+\end{quote}
+
+Health.pm loaded the appropriate class based on its arguments,
+then blessed the reference into that class.  Although I only
+show the basics of what really happened, this example demonstrates
+everything for a Factory.  The constructor for Health.pm returns
+an object that belongs in another class based on the state
+of the program.
+
+In this example, I created the hash {\tt \%Classes} dynamically
+at compile time by looking for installed modules (which, when
+done once, can be cached).  As long as the assessment was 
+available, 
+
+
+
+
+
+

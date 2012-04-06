@@ -1,0 +1,183 @@
+% $Id$
+\labeledchapter{Mediator}
+
+    \section{Abstract}
+
+A mediator class controls the communication between objects so that each 
+object does not need to know the details about which objects exist or 
+what their interface supports.  The mediator object knows which methods
+each object supports, and has a way to choose between objects when more
+than one object can respond to the same method.
+
+    \section{Perl modules which implement mediation}
+    
+\begin{itemize}
+\item Foo
+\item Bar
+\end{itemize}
+
+    \section{Motivation}
+
+Large systems may need to communicate with other parts of the system.
+In a dynamic object oriented system various jobs within the system, and
+to increase the flexibility of the system we do not want to tie the functionality
+to a particular object.  The mediator decides which object should handle the
+method based on what we tell it about the system.  For instance, we once created
+a system that stored configuration information in a database, and within the system
+there was a configuration object and a database object.  The database did a lot
+more than the configuration portion, although we could avoid the configuration
+object if we wanted, although the configuration object ultimately used the database
+class.  This turned out to be a major maintenance headache in the system which was
+really around a hundred different separate scripts that could, in some cases, act
+independently of each other.  Every one of these scripts started by including the
+configuration module and the database module, meaning that any time we wanted to
+change how we included those modules we had to change all of the scripts.  Once
+we moved to a mediator design, each independent script only had to use the mediator
+object 
+
+    \section{Illustration of use}
+
+A medium-sized system that I created provided a framework from which 
+developers could write programs to support a web application whether
+those programs were CGI scripts, \modperl modules, or command-line
+utilities.  Most of the scripts would access a configuration file,
+a database server, and perhaps several other resources.  The beginnings
+of each script looked something like this simplified code:
+
+\begin{quote}    
+\begin{verbatim}
+use Product::Database;
+use Product::Config;
+
+my $config   = Product::Config->new( $file );
+my $database = Product::Database->new( $config->database_server );
+\end{verbatim}
+\end{quote}    
+
+This structure worked as long as I did not have to change anything
+about the Product::Config or Product::Database modules.  This sounds
+more harmless than it actually was.  Since I did not start with a good
+design, I could not refactor or improve the framework without making
+changes in lots of other places, even with multi-file search and replace.
+Any time you have to make changes in
+several different places for one logical change, you should consider that
+a better design could help you.  In this case, where I was neck deep in 
+deadlines, production schedules, and a system that worked by was becoming harder
+and harder to maintain, I could not see a solution until Kurt Starsinic 
+took one look at it and said ``have you ever heard about delegation?''.  He
+immediately made me read appropriate sections in { \it Design Patterns }, which 
+led me to the Mediator pattern.  
+
+I reduced the above code in each script to a couple of lines.
+
+\begin{quote}    
+\begin{verbatim}
+use Product;
+
+my $product = Product->new( $config_file );
+
+\end{verbatim}
+\end{quote}    
+
+This small shift in design had a major maintainability benefit since it
+decoupled the scripts from the details.  Each script dealt with the
+generic Product object, which in turn handled all of the details of the
+framework. I could change those details without disturbing other code.
+
+The Product object had Product::Config, Product::Database,
+Product::Error, Product::WebUserAgent, and other objects that the script
+did not see and did not need to know about. Instead of dealing with
+multiple objects, the scripts uses a single point of contact, the
+Product object deals with one object.  Each module could shed a lot of
+common code, such as that for error handling, since it could be handled
+in the Product module, which also unified supporting code like error
+handling.
+
+Additionally, this design simplified the framework code significantly.
+Some of the modules, like Product::Config and Product::WebUserAgent
+needed functionality from Product::Database since it provided access
+to all persistent information.  The single point of communication applied
+to the contained objects as well.  The Product module decorated (see 
+Pattern XXX) each object so that it could communicate with the Product
+object through a method.
+
+\begin{quote}
+\begin{verbatim}
+$self->parent->method_name
+\end{verbatim}
+\end{quote}
+
+The Product module received the call to method\_name and would handle
+it appropriately.  The Product object could easily communicate with
+all of its contained objects by stepping through whatever data
+structure it used to hold them.
+
+    \section{How the design works behind the scenes}
+
+One object acts as a single point of communication for all of the objects 
+that it controls.  Once it Mediator object receives a method, it can handle
+it in many ways.  Remember that the Mediator is a design, not an implementation.
+Behind the scenes the Mediator may use Delegation, Chain of Responsibility,
+or something else to do the job.  You may hard code behavior directly into
+the module, or do something more dynamic.
+
+	\section{Unrelated objects}
+	
+	
+	\section{Related objects}
+	
+Some or all of the objects contained in the Mediator may depend on
+each, in which case we call them colleagues.  Without the Mediator,
+each colleague must explicity refer to each other colleague and know
+about the details of each of them.  Each colleague is tightly coupled
+to each other colleague.  Any change in any colleague ripples through
+the entire system and vice versa.  Code that appears to be modular because
+it uses namespaces, packages, and objects is actually monolithic and
+difficult to separate. Consider the Product::Config module which needs
+to get information from the database server.  A tightly coupled implementation 
+refers to Product::Database explicitly.
+
+\begin{quote}    
+\begin{verbatim}
+XXX: code that shows Config and Database coupling
+\end{verbatim}
+\end{quote}    
+
+Since Product::Config uses Product::Database explicitly, it might
+also use a separate database connection (unless Product::Database uses
+the Singleton pattern).
+
+With the Mediator, the objects can communicate with each other without
+knowing about the other objects.  The mediator can provide a way for
+each colleague object to communicate with the Mediator by decorating
+each of the objects (see the Decorator pattern) so that it can refer to
+it's mediator.  The colleague class doesn't even need to know which
+Mediator class it uses.
+
+\begin{quote}    
+\begin{verbatim}
+	my $mediator = $self->mediator;
+	
+	my $info = $mediator->database_call;
+\end{verbatim}
+\end{quote}    
+
+More simply, we can skip the intermediate variable.
+
+\begin{quote}    
+\begin{verbatim}
+	my $info = $self->mediator->database_call;
+\end{verbatim}
+\end{quote}    
+
+
+
+When a Product::Config
+object wants to get information from a database server it asks the Mediator.
+
+\begin{quote}    
+\begin{verbatim}
+$self->mediator->database_call
+\end{verbatim}
+\end{quote}    
+

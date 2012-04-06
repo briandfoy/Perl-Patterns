@@ -1,0 +1,8 @@
+*.aux
+*.toc
+*.pdf
+upload
+.DS_Store
+pdf
+*.log
+patterns.ulrs

@@ -1,0 +1,309 @@
+% $Id$
+\labeledchapter{Visitor}
+
+    \section{Abstract}
+
+The Visitor patterns provides an easy way for me to
+separate complex data structures from the operations I
+want to perform on those structures.  Other users can add
+new operations without affecting the modules that implement
+access to the data structure, which allows more flexibility
+and promotes reusability.
+
+	\section{Perl Modules which use a visitor}
+	
+Netscape::Bookmarks
+MacOSX::iTunes
+Data::Grove
+
+   \section{Motivation}
+
+When I create something useful, people tend to use it for
+everything other than what I thought would be useful.  Some
+of my modules are really glorified interfaces to deeply nested
+hashes---Netscape::Bookmarks, Mac::iTunes, and Mac::PropertyList,
+for example.  I created these modules because I needed to deal
+with the data in a Perl program in some particular way.  With
+Netscape::Bookmarks, I wanted to export database information
+to the format the Navigator (and now Mozilla) could use.
+I created Mac::iTunes and Mac::PropertyList because I wanted
+to programmatically change my iTunes configuration.  I have
+a 40 gigabyte hard drive bulging with MP3 files that I want
+to add to iTunes, but I do not want to add all of the files
+individually.  Perl can do all of these things for me if I
+can represent the data somehow.
+
+Once I release these modules, people use them for tasks that
+I never considered.  I do not want to add every transformation
+or task to the module anytime someone comes up with a new use.
+If I provide a way for external modules to interact with my
+data structures, I virtually eliminate any coupling between
+operations and data.  My module represents the data, and that
+is the end of it.
+
+   \section{Illustration of use}
+
+The module that implements the data structure can provide a
+way for an external module, the I<visitor>, to traverse its
+data structure and interact with each object. The objects do
+not have to be of the same type or have the same interface. 
+The module simply guarantees that the visitor has a chance
+to see each object. The visitor class defines operations for
+the data structure, and these operations may change the data
+structure or not.
+
+The Netscape::Bookmarks modules represents a bookmarks file
+for Netscape Navigator or Mozilla as a tree structure behind
+the scenes---a deeply nested hash of hashes. The programmer
+does not need to know how I implemented the data structure
+as long as they follow the published model interface.  I can
+change things behind-the-scenes as long as the interface
+gives the same results.
+
+This tree structure can be quite deep, so simple operations
+can incur a lot of extra setup work.  The simple operation
+has to traverse the data structure and make decisions about
+what to do at each step.  The Netscape::Bookmarks data
+structure is heterogenous---it is a nested collection of
+four other types of objects, one of which is another
+container. A task like link checking
+can take quite a bit of extra work just to set up the
+controls to handle the details of the data structure which
+ultimately is implementation dependant.  Any operations
+which I do not define in the module has to muck with
+the internal data structure directly.  
+
+That is, new operations would have to do this work unless I
+provided a general way for the module to handle the overhead
+automatically.  The Visitor design pattern provides a way to
+handle this situation.
+
+The Visitor pattern separates the operations from the
+data.  It is the object oriented version of a callback.
+One module defines access the data, and along
+with that it defines a way to traverse the data.  The
+traversal mechanism exposes one internal object at a 
+time.  The external module, the visitor, then operates
+on the presented object.  When the visitor is done with
+one object, the data module presents another one. 
+
+
+
+Netscape::Bookmarks::Category has an introduce()
+function that takes an object as an argument. This object is
+the visitor and must have a visit() method.  Since
+Netscape::Bookmarks::Category contains all of the
+information about the data structure, it
+should be the part that knows how to traverse it.  As
+introduce() steps through the data structure, it calls the
+visitor() method on each object with the Visitor object as
+its argument.  Once ``inside'' the object, the node object
+turns around and calls the visit() method on the Visitor
+object with itself as the argument.  The Visitor object then
+determines what sort of object it has and what it wants to
+do with it.
+
+XXX: introduce code
+
+XXX: method code
+
+
+
+It may seem that there is an extra level of redirection
+here. Why not use the Visitor's visit() method directly in
+introduce? The extra layer, the visitor() call, gives each
+object a chance to accept or decline to be visited, perform
+checks on the visitor object to ensure it conforms to a
+specification, or inspect the results of the Visitor object.
+ The element may wish to change its state after the visitor
+does it's work.  For instance, a Netscape::Bookmarks::Link
+object may wish to update its LAST\_VISIT field (which
+refers to the last time I selected the link, not anything to
+do with this pattern). Some objects may be private or for
+internal use only, so they would decline a visitor
+(basically a no-op). The visitor object should not be
+responsible for these things, or have to break
+encapsulation. All the visitor knows is the published
+interface.
+
+The Netscape::Bookmarks distributions comes with several
+visitor examples.  The natural one is a link checker.  The
+bookmarks file has categories, links, separators, and
+aliases, and I only need to visit link objects.  I create a
+visitor class which has a method for each sort of object I
+wish to visit.  I instaniate a visitor object, and call the
+introduce() function.  The Category object handles the
+traversal, and each time it encounter a link, the visitor
+checks the link.  The visitor class is very small since it
+only defines the operations I want to perform, although I
+can as many operations in a single class if I like.
+
+XXX: link check visitor
+
+Any other time I want to do something with each element, I
+can create another visitor class.  The original classes do
+not change.  People who do not need a particular visitor
+operation do not need the class which defines them, and
+other programmers can create new functionality without
+dealing with the original code base which is kept in a
+stable state.  Modules which define operations are not
+strongly coupled to the data---they can be distributed
+independently.
+
+	\section{Callbacks}
+	
+The non-object implementation of the Visitor pattern is the
+callback, typically used by things which traverse or iterate
+through a bunch of things which might be objects but
+probably are not.  Each time the function encounters a token,
+thingy, element, or whatnot, the thingy is passed to the
+function.  This way, the code providing the thingys does not
+need to foresee every possible operation that the programmer
+may want to do.  It simply supplies the way to see each
+object.
+
+The File::Find module, which comes with Perl, is a Perl
+replacement for the find command line tool.  The
+programmer supplies a callback function to the find
+function.  The find function handles all of the 
+transversal logic.  The easiest way to start with
+File::Find is find2perl which turns find commands into
+Perl scripts.  Code listing XXX shows a slightly edited
+version of the output from \texttt{find2perl . -name "*.pm" -print}.
+The find function applies the wanted function to each
+file it finds.  The 
+
+\begin{quote}    
+\begin{verbatim}
+#!/usr/bin/perl
+
+use File::Find ();
+
+File::Find::find({wanted => \&wanted}, '.');
+exit;
+
+
+sub wanted {
+    /^.*\.pm\z/s;
+    print("$File::Find::name\n");
+}
+\end{verbatim}
+\end{quote}    
+	
+\begin{quote}    
+\begin{verbatim}
+	XXX: HTML::Parser
+\end{verbatim}
+\end{quote}    
+
+	\section{Possible implementations}
+	
+	\subsection{one method per class}
+
+A lot of other literature on the Visitor pattern has a
+method for each sort of object.  In the Netscape::Bookmarks
+module, there are four sorts of object XXX, so the class
+would look like:
+
+\begin{quote}    
+\begin{verbatim}
+XXX: code
+\end{verbatim}
+\end{quote}    
+
+
+	
+	\subsection{dispatch tables}
+
+Some objects may have the same interfaces, so you want to
+reuse methods for some of them.  You still check the
+object's type, but then use a lookup table to decide which
+method to use.
+
+\begin{quote}    
+\begin{verbatim}
+XXX: hash with keys of class names and values of method names
+\end{verbatim}
+\end{quote}    
+
+Once you look up the method name, you can call it
+
+\begin{quote}    
+\begin{verbatim}
+	$self->$method($object);
+\end{verbatim}
+\end{quote}    
+	
+	\subsection{AUTOLOAD tricks}
+	
+You might be able to use a single method for all of the
+object processing. This can be especially handy when all of
+the objects have the same interface, or share a common
+method name (polymorphism), or you don't need to call any
+methods on the object (!!).  Suppose we have a collection of
+heterogeneous objects that each have a title method, and we
+want to count the number of objects at the same time we
+print put its type and title.
+
+\begin{quote}    
+\begin{verbatim}
+sub AUTOLOAD
+	{
+	my $self   = shift;
+	my $object = shift;
+	my $method = $AUTOLOAD;
+	
+	$count{$AUTOLOAD}++;
+	
+	print "$AUTOLOAD=> ", $object->title, "\n";
+	}
+\end{verbatim}
+\end{quote}    
+		
+Suppose we wanted to turn on debugging output for objects in
+the collections that supported it:
+
+\begin{quote}    
+\begin{verbatim}
+sub AUTOLOAD
+	{
+	my $self   = shift;
+	my $object = shift;
+
+	$object->debug('on') if $object->can('debug');
+	}
+\end{verbatim}
+\end{quote}    
+
+	\section{Designing classes for Visitors}
+	
+Besides the infrastructure to allow visitors to interact
+with objects, you can also add other things to your objects
+to make your life easier.  Since you are expecting someone
+to iterate through your collection with a visitor, you can
+supply polymorphic methods that do the right thing for each
+object.
+
+
+		\subsection{String representation}
+		
+You supply a method to turn the object into a string
+representation, no matter the object.  You might be
+especially lazy and use Data::Dumper, but each method still
+has an as\_string method.  The visitor may decide not to
+call as\_string on every object, but it could if it wanted
+to. A programmer may wish to call as\_string on objects
+which meet certain criteria.
+		
+		\subsection{Debugging or Tracing}
+		
+		
+		\subsection{Peeking}
+		
+		
+		\subsection{Update}
+		
+The observer Pattern describes a way to notice several
+objects that something has happened. The visitor can be the
+way that it communicates with each object.
+	

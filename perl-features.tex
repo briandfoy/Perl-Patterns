@@ -1,0 +1,229 @@
+% $Id$
+\labeledchapter{Perl Features that make this possible}
+
+We assume that you are already familiar with object oriented 
+programming in Perl, or at least have some experience with it
+in some other language, and that you have access to the Perl
+documentation that comes with Perl.
+
+All of the patterns that we discuss in this book are built
+as modules, since part of the pattern design process is 
+building reuseable components.  A lot of the Perl features
+and techniques that we use to create a pattern revolve
+around features for module creation or classes that are
+typically used by modules, such as Exporter and AutoLoader.
+You may already be familiar with the conventional ways of
+using these features, but they have more power than that
+if we think about them just a little differently than usual.
+Indeed, one of the greatest compliments to any design is its
+usefulness in ways never imagined.
+
+    \section{How to use this chapter}
+
+This chapter is a reference for the design patterns that we
+discuss in the second half of this book.  If you are already 
+familiar with object-oriented programming in Perl and the concepts
+that you see in the section headings for this chapter then you
+may want to skip ahead.  Otherwise, you may want to refer to this
+chapter when you do not understand a technique or trick that we
+use in a pattern.  If you are doing some sort of penance, then
+you should read this entire chapter before going on to the next.
+
+        \subsection{Use the Perl documentation.}
+
+For more details on any of the concepts we discuss, you can get
+more details by looking at the Perl documentation.  Every standard distribution
+of Perl comes with documentation in a form appropriate for that
+operating system.  You may also want to start using Perldoc.com which
+has indexed and made searchable the Perl manual pages and a lot of the
+documentation for popular modules.  If you have a web browser and access
+to the internet then you can always get to the documentation.
+
+Aside from the documentation, the definitive reference is {\it Programming Perl}.
+
+\input{universal}
+
+     \section{References}
+     
+     
+     \subsection{Comparing references}
+
+Have you ever accidently de-referenced an object, or even an ordinary
+reference, while printing a string?  You probably got some funny looking
+output that looked like the object's package name and what you might
+want to use as a memory address.  Although there is no way in Perl to
+take that stringified      
+
+    \section{Inheritance}
+
+Inheritance defines a familial relationship between classes, which may
+have parents and children (or base and derived) classes.  Base classes
+can define behavior for the objects that are derived from them, just
+like all classes can use the behavior defined in UNIVERSAL.  Perl keeps
+track of this using a special package array @ISA (pronounced ''is a'', as
+in ''a camel is a mammal'').  Base class names are placed in the @ISA array.
+Those base classes might also have their own base classes.  To complicate
+matters even more, a class can inherit from more than one class at a time.
+This leads to all sorts of problems unless we know that the multiple base
+classes will not collide.  Several of the patterns use multiple inheritance,
+but in a completely safe way.  The whole of the inheritance relationships
+is a tree, with the UNIVERSAL class at its root.
+
+\todo{nifty LaTeX figure of a tree}
+
+When Perl cannot find a method in the derived class, it starts a depth first
+"climb" (since it goes towards the root of the tree, which is actually
+at the top) of the inheritance tree.  It first looks in the first class named 
+in the current @ISA.  If it does not find the method in that class, it looks
+in the first class named in that classes @ISA, so forth, working its way
+back down and up if there is multiple inheritance.
+
+\todo{example traversal}
+
+    \section{Subclassing}
+
+We can extend or modify a class by subclassing the base class.
+
+    \subsection{SUPER}
+
+The SUPER class is a special class name which connotes the immediate
+parent class of the object.  It works on a per-object basis rather
+than thinking about the current package or the package in which
+it was defined.  This feature, which some people think is a 
+mis-feature, is really quite handy for design patterns.  We can create
+objects, re-bless them, pass them around, store them in complex structures,
+and all other manner of chaos and SUPER still means the object's
+parent class.
+
+    \section{bless}
+
+Perl is not an object oriented language, although it can do a very
+good job pretending to be one.  Depending on your personal philosophy 
+of language design, you probably either would give your right hand
+for this or want to take Larry's right hand for making it that way.
+
+Perl knows what class an instance thinks it is because we tag
+the object with a string that is the class name.  That is really
+all that bless does.  An object is really just a blessed reference,
+or more simply, a reference that has a name tag.
+
+\begin{quote}    
+\begin{verbatim}
+my $self = \%hash;
+
+bless $self, $class
+\end{verbatim}
+\end{quote}
+
+To read the name tag of an object, we can use ref() with which returns
+the string bless() tagged it.  We could also use the UNIVERSAL::isa
+function to check to see if the name tag is a particular string, as
+we saw before, but we can also ref().
+
+\begin{quote}    
+\begin{verbatim}
+my $scalar = 'foo';
+bless $scalar, time;
+
+my $time_created = ref $scalar;
+\end{verbatim}
+\end{quote}
+
+There is absolutely no requirement that the class actually exist,
+or that we use anything from the class with the tagged variable.
+Indeed, one of the authors is perverse enough to use this tag
+as out-of-band meta-information about the variable.  Consider
+a variable
+
+    \section{AutoLoader}
+
+The most common use of Autoloader involves breaking up a module
+with AutoSplit then loading methods only when they are needed. 
+Large modules, such as \todo{some module names}, inherit from AutoLoader and put
+their methods after the \_\_END\_\_ token.  When the module is
+autosplit, each method is put into its own file in a special
+directory.  At run-time, when an object calls a method which is
+not known, the AUTOLOAD routine in the AutoLoader package is
+called.  This routine looks into the special auto directory for
+a file with the right name to match the method name and package
+for the requested method.  If it is found it is loaded and the
+program continues.
+
+Autoloader only does this by default, however.  We can create our
+own AUTOLOAD routine to do just about anything that we want.
+
+One disadvantage of this approach is that there is presently no
+way to re-enter the inheritance tree search process once we
+have fallen into an AUTOLOAD routine in any of the packages we
+were searching.  We either have to do something useful or give
+up.  Rumor has it that the next version of Perl will be more
+understanding.
+
+
+    \section{Operator overloading}
+
+We can change the way that operators behave with certain objects
+by redefining what they do, or overloading them.  You probably
+already recognize the common operators such as X, but may not
+know about the operators XXX.  We can redefine the behavior
+of each of these to suit our needs.
+
+
+When we redefine an operator we change its behavior for all
+instances in a class.  
+
+
+    \section{Tied variables}
+
+Perl has a nifty feature that allows us to use ordinary looking 
+variables in the ordinary way but redefine what they actually do.
+For instance, with a scalar variable we can assign to it, access
+its value, interpolate it, and so on.  With tie we tell Perl that
+these normal operations are actually going to be carried out by
+a hidden object from a package that we create.  This package has 
+special, predefined method names to carry out the operations of the
+variable.
+
+
+
+    \section{Comparison to other languages}
+
+Despite what you may have been taught, there is a difference
+between object oriented programming and object oriented languages.
+This is not the typical assertion that an object oriented language
+is a bondage-and-discipline language.  Indeed, C++ is a very strict 
+language, but it is not an object oriented one even though you use
+it to create classes and objects.  
+ 
+        \subsection{C++}
+
+C++ sucks for a number of reasons and we endeavour to list all of 
+them here.
+
+        \subsection{Java}
+
+Java sucks less than C++, but suffers from an overzealous marketing
+department.  
+
+        \subsection{Python}
+
+Python is a language for people who just want to do what they are
+told and go home at the end of the day.        
+        
+        \subsection{Smalltalk}
+
+Smalltalk is for geeks not satisfied with how things work and who
+are brazen enough to change the class structure themselves.  They
+distribute these changes as "Goodies" like some pervert giving 
+tainted candy to halloween youngsters.
+
+        \subsection{Eiffel}
+
+Its named after something French.  I do not like France.
+
+        \subsection{Ruby}
+
+If you want to work in Perl for the rest of your life, you have to
+kill Ruby which might be the next big thing.
+
+        

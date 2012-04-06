@@ -1,0 +1,118 @@
+% $Id$
+\labeledchapter{Design patterns}
+
+    \section{Why design patterns?}
+
+As we program, we likely encounter the same problems again and
+again, and, as any person would, use solutions that we know
+to work or have at least worked for us in the past.  Perhaps
+unconsciously, we recognize a pattern and apply at least a
+minimal amount of design its solution.  Going a bit further,
+we realize that this is what we do.  We realize that there
+is a pattern and that a design that fits that pattern will
+be useful in the future.
+
+Once we have a pattern, we can easily apply it to other
+problems, as well as letting other people use the pattern
+that we developed.  Instead of reinventing the wheel, we are,
+along with everyone else, able to focus on other parts of the
+problem which might even be new patterns themselves.
+
+        \subsection{Object interation}
+
+Objects can interact with each other, and some objects may be
+the caretakers of one or more other objects.
+
+    \section{Software Reuse}
+
+We strive to Lazy, one of the principal virtues of the
+programmer, meaning that we want to do things once and then
+reuse that work over and over again when we need to accomplish the
+same task.  For instance, the CGI.pm module is the epitome of laziness.
+Just about very CGI program needs to do a little bit of data
+processing in a completely defined manner.  Instead of recoding
+this task in every CGI program, even though some people apparently
+do that, we simply use CGI.pm and the work is done in a couple of
+lines.
+
+We are even more lazy than that may appear though.  Lincoln Stein
+continually works on CGI.pm to fix problems and to keep up with
+web server and browser oddities, or to incorporate major changes
+in web technology such as mod\_perl.  If we had simply cut-and-pasted
+some code into every CGI script, when we needed to fix that code
+we would have to change every script.  When Lincoln did the hard
+work of creating CGI.pm, he was really saving us the work of 
+editing lots of individual files.
+
+Once we have created a reusable software component, we need to
+let other people use it.  The Perl community owes its success
+in this area, and indeed the greater popularity of Perl, to  the
+Comprehensive Perl Archive Network \footnote{about CTAN and that
+we are using \TeX} which provides an amazingly easy way to upload
+and to distribute our work, as well as an even easier way for
+others to download and use our work.
+
+        \subsection{Interfaces}
+
+When we want other people to use our software creations, we need
+to provide them with an easy, defined way to do that.  An interface
+is the instructions for use of our software.  We tell others which
+methods are available and what they do.  We have to document our
+software.  Again, Perl has this builtin [Java does too, and its
+a great feature.  Smalltalk's way of doing this is a bit more
+primitive].
+
+Most languages used for object oriented programming are quite
+fascist in their policing of the interface.  In C++, for instance,
+we explicitly state which methods can be used outside of the class
+and which ones can be used inside of the class.  If we try to
+deviate from that the compiler complains.  Perl, however, is not
+like other languages.  This probably does not surprise you, although
+it does mean that we need to pay extra attention to the interface
+and to use the module as directed.  Perl allows us to peek into
+anything we want to see, including all of the ugly innards of all
+of the classes we use.  We can even modify class definitions
+and behavior from our user-level code, which we do in patterns
+\todo{insert pattern names}, although we do it with care.
+
+        \subsection{Composition}
+
+We can create objects that have other objects, although they
+are not necessarily related to those objects.   Instead of 
+an {\it is a \/} relationship, composition is a {\it has a}
+relationship.  A FedEx airplane is a type a plane, so we
+might say that it {\it is a \/} plane {\it is a \/} aircraft, but
+it may contain many things, such as cargo and crew, so it {\it has a}
+pilot and it {\it has a} package, just like that package {\it is a \/}
+box although it {\it has a} volleyball in it.
+
+We can use composition when we want to store a collection of 
+objects or when we need to group together several objects that
+need to work together.  We do not need to know anything about
+the code behind these objects since we use them as is.  Since we do
+not extend them or modify them, this sort of reuse can be called
+black-box reuse.  We do not see the inner workings.
+
+Composition is used in patterns \todo{insert patterns}.
+
+        \subsection{Inheritance}
+
+In some cases a particular class does not do everything that
+we need for a task.  This can be by design, such as an abstract
+base class in which the author expects us to implement
+the methods or extend the class.  We create a subclass, or derived
+class, that implements or extends the base class.  The derived class
+inherits the behavior of the base class so we have to know at least
+a little bit about the base class to understand what we need to 
+do in our derived class.  
+
+    \section{Working as a team}
+
+Teamwork is good.  However, as the team size grows, so does our
+obligation to team goals which means extra work for us to ensure
+that our team mates can use the stuff that we produce.
+
+        \subsection{Components}
+
+Once we have a component that does a small task very well, we
+can reuse it for other purposes and pass it around and stuff.

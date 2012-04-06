@@ -1,0 +1,153 @@
+% $Id$
+\labeledchapter{Iterator}
+
+    \section{Intent}
+
+The Flyweight creates a few, fine grained objects that can be
+shared so that they can be used many times efficiently.
+ 
+    \section{Motivation}
+    
+Suppose we create things which share the same data over and over
+again.  We shouldn't have to store the duplicated data. A Flyweight
+stores the data once, and let's everyone share it. Further, in
+situations where this might happen once, it probably happens quite a
+bit, so you can create a Flyweight Pool that holds several of these
+shareable objects.
+
+	\section{Illustration of use}
+
+I like to watch movies---a lot of people do, and i also like to keep
+track of movies I've seen or purchased so I can .... I keep track of
+screenwriters, directors, and cinematographers for each movie.  If I
+wanted to represent a movie as an object, I could create an object
+that contains other objects in a HAS-A relationship.  A movie has a
+director, a cinematographer, and some screenwriters and producers.
+
+\begin{quote}
+\begin{verbatim}
+	Movie
+		Director
+		Screenwriter
+		Cinematographer
+		Producer
+		Actor
+\end{verbatim}
+\end{quote}
+		
+
+Each one of these is a person though and there is really no difference
+between them.  I should only ever have to have one object that
+represents John Cusack, for instance, even though he might be the
+director, producer, or the screenwriter, or even more than one of
+those in the same movie.
+
+Without a flyweight, if i wanted to make a Movie instance for High
+Fidelity, I would have to make separate John Cusack objects for
+Producer, Writer, and Actor.  I have duplicated the same data three
+times.  What if I make instances for the other John Cusack movies that
+I like (and there are many)?  I would have to create even more John
+Cusack objects.  Multiply this further by all the people in all of the
+movies I care to track.
+
+The flyweight solves the problem by sharing objects that can be used
+in different contexts in the same time.  The object itself stores the
+minimum data it needs (called its intrinsic state)---the stuff that
+does not change depending on the context.  John Cusack's name,
+birthday, height and so on do not change depending on which role in
+the movie. Some things do depend on the context (called the extrinsic
+state)---his age at the time he worked on the movie, for instance.  We
+can calculate his age based on the context (the particular movie), but
+be do not need to store it in the object.
+
+Let's create a Person class that acts as a flyweight class:
+
+
+\begin{quote}
+\begin{verbatim}
+	XXX: create class
+\end{verbatim}
+\end{quote}
+		
+	
+The class creates singleton objects with a factory.  Since every actor
+should have a unique name (according to the Screen Actor's Guild), we
+can get a Person object by specifying their name.  The first time
+around, we create an instance and add it to a pool that we store in
+the class data.  The next time we ask for an object for the same
+person, we get the same object back.  The two references point to the
+same object.  When we ask for an object for another person, the same
+thing happens and another object is added to the flyweight pool.  The
+savings in memory are easy to see even on the back of the envelope. 
+If I created movie instances for John Cusack's filmography, 52 films,
+in which he played as many as 4 roles in the production of
+them---about 60 uses of a John Cusack object so far. If I want to add
+actor objects for Joan Cusack, his sister, I have another 10 or so
+objects.  With a flyweight pool, I only use two objects, one for each
+actor---a 30 times reduction.
+
+	\section{Using context}
+	
+What if the object needs to know it's context (what we called
+extrinsic state earlier)?  Pass that information to the object through
+a method call.  Let's calculate the age of actors for the years they
+were in movies. We store their birthday because we magically fetched
+it from a database (or something like the IMDB).  The movie adds the
+temporal context, which we pass to a new method:
+
+\begin{quote}
+\begin{verbatim}
+	sub age
+		{
+		my( $self, $year ) = @_;
+		
+		# calc year
+		
+		return $year;
+		}
+\end{verbatim}
+\end{quote}
+		
+	\section{Immutability}
+
+Most of the times, the data in the flyweight instance will not 
+change.  Since it does not store state, no other part of the
+program should need to change it.
+
+However, if it does change, everyone who shares the object benefits
+from the change.  If I mistyped an actor's name, or discovered an
+error in their information, such as an incorrect birthday, I update
+it in one place. 
+
+	
+	\section{Another example}
+	
+You can implement the flyweight pattern in a couple of more ways.
+Let's start with a bunch of MP3 files.  If we ripped these files
+from the same CD, the files share some common information---artist,
+genre, album---and we should not have to store this information
+more than one time in any of our data structures.  Every MP3 file
+can share a reference to the same data.
+
+
+Extend this to several albums.
+
+Once we have a bunch of MP3 files, we want to organize them into
+playlists.  Each MP3 object can store the location of the file
+along with some information about the file and its contents.  The
+playlists are collections of references to MP3 objects.
+
+XXX:
+
+The MacOSX::iTunes module uses this a flyweight pool because it
+doesn't want to duplicate a lot of data, but also because the iTunes
+Music Library file does the same thing.  The data structure in MacOSX::iTunes
+is a collection of MacOSX::iTunes::Playlist objects, which in turn are 
+collections of MacOSX::iTunes::Item objects.  The MacOSX::iTunes::Item objects
+represent a flyweight pool.  The module only stores the Item information
+once even though it can belong to multiple playlists.  I do not have to
+keep a separate object for each XXX song each though it appears it my
+XXX, XXX, XXX, XXX, and XXX playlists.
+
+The module identifies items by filename, although it might also use things
+like the MD5 digest, a combination of MP3 meta data.

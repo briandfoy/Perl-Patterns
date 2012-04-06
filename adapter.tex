@@ -1,0 +1,58 @@
+% $Id$
+\labeledchapter{Adapter}
+
+    \section{Abstract}
+
+The interface of one class translates calls to the interface
+of another.
+
+    \section{When to use an Adapter}
+    
+\begin{itemize}
+\item You want to use a new API but need compatibility with
+    legacy programs.
+\item You need a different or expanded API for a legacy API
+    which you cannot change
+\item You need to use existing classes that have a different
+    style of interface
+\end{itemize}
+
+	\section{Illustration of use}
+	
+Perl was still at version 4, but moving towards Perl 5 when the world
+wide web was still new and people were just beginning to use dynamic
+content and CGI programming.  Stephen Brenner created a Perl 4 library
+named cgi-lib.pl which simplified many of the tasks that all CGI scripts
+did, and as with most things that allow us to be lazy, it become very
+popular, and rightfully so.  A typical cgi-lib.pl program looked like:
+
+\begin{quote}
+\begin{verbatim}
+#XXX: example of cgi-lib.pl script
+\end{verbatim}
+\end{quote}
+
+When Perl 5 became more popular, and its extensible, modular design
+allowed Lincoln Stein to develop CGI.pm, a lot of people started using
+it.  CGI.pm is completely different than cgi-lib.pl.  It has more
+features, uses object oriented programming, and handles most of the
+modern web eccentriticies, including \modperl.
+
+Many people wanted to use CGI.pm since it included many bug fixes, handled
+more features, and was more stable.  The cgi-lib.pl library was good
+for what it did, but technology had moved on. People still had a lot
+of value invested in scripts which used cgi-lib.pl.
+
+Lincoln solved this by adding an Adapter to CGI.pm, which, with a 
+couple of keystrokes, could make CGI.pm use the same interface as
+cgi-lib.pl.  To use CGI.pm with a script written for cgi-lib, you
+change {\tt require cgi-lib;} to {\tt use CGI qw(:cgi-lib)}.  The
+previous example once converted, looks like.
+
+\begin{quote}
+\begin{verbatim}
+#XXX: example of cgi-lib.pl script converted to CGI.pm
+\end{verbatim}
+\end{quote}
+
+

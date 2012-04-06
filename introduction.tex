@@ -1,0 +1,164 @@
+% $Id$
+\labeledchapter{Introduction}
+
+    \section{Not a lesson in object oriented programming}
+
+This book is not a tutorial on object oriented programming (OOP),
+or on its counterpart, object-oriented design (OOD).  You might get the
+idea  that Perl is a darned good language for object-oriented
+programming once you see some of the tricks that I show, but keep
+in mind that design patterns do not necessarily mean that we have
+to use object oriented patterns.  A lot of the literature on
+these patterns uses a true object oriented language called 
+Smalltalk, but that is not the language that is in the title 
+of this book and that is not the language that you are using
+to make your life easier or the one you may be interested in
+using to make your life easier.
+
+A lot of the literature of design patterns shows pretty pictures
+in the Uniform Modeling Language to show relationships between
+parts of the design.  
+
+Not all patterns need to use objects, or at least not to the naked eye.
+For instance, the Facade pattern in chapter \ref{Facade} shows
+some implementations that do not use objects to express the
+pattern.  Patterns are about solutions to problems, not
+excuses to use objects.
+
+    \section{Not a treatise in design patterns}
+
+People have already written quite a bit about design patterns,
+whether in architecture, XXXfoo, or software. I do not intend
+to duplicate the great resources other people have created. I
+show how some of that applies to the programming tool which we
+call Perl.  Realize that design patterns  are just that.  They
+are not implementation patterns, style patterns, or how to
+use the language patterns.  In some chapters I show some
+implementations so that I can connect the pattern to its use,
+but you might take the same pattern and use it in a completely 
+different way.
+
+I do not wnat you to think that this book is everything you
+need to know about design patterns.  If you get enough out of
+this book to make your software better, to solve your business
+problems easier, and to use Perl more effectively then I have
+done what I need to do.  If you want to participate in an 
+online discussion of design patterns, submit original work
+to conferences, or have long, academic discussions about
+patterns, then this book may be a good place to start, but
+it is not enough to let you know everything.
+
+	\section{The role of software in reality}
+	
+I am not writing an academic text about patterns. I am interested
+in solving real business problems and writing better software. 
+When we write better software, we make it easier to maintain, easier
+to learn, easier to read, easier to improve.  Better software
+provides more business value and more value to the software
+community.  At the end of the day, the people who use our
+software creations do not care how we made it, what design
+methodology we used, or which papers we presented at the 
+Perl Conference that showed the elegance of it.  The users
+want the software to make their life easier.  
+
+% XXX: lots of 'to be' in this paragraph
+The rub, however, is that is only at the end of the day.  Anyone
+with a few projects behind them knows that the next day the
+users are going to ask for more value, different goals, or
+different features, which is why we care.  The benefits of
+better design let us add new features, additional value, and
+more improvements faster, cheaper, and mor efficiently.  Instead
+of putting in more overtime.
+
+I study design patterns to provide more value in my software,
+and I write about this in this book.  You will have to get the
+rigorous philosophical discussions somewhere else.  The things
+that you learn here might give you the time to do just that.
+        
+    \section{A brief tour of objects}
+
+Although I said that this book was not about object oriented
+programming, I do use it quite a bit in the examples, and I 
+use it in ways that may be a little bit off the beaten path
+because Perl let's me do that.  Perl differs form a lot of
+other languages because it relys on you the programmer to do
+the right thing.  Perl gives us an amazingly flexible way
+to solve problems, but at a price.  We lose the comfort of
+knowing about some problems at compile time and sometimes 
+not even knowing at run time.
+
+        \subsection{Objects are nouns}
+
+Imperative programming languages, such as C and Perl before
+version 5, made you think about the verbs of the language
+foremost. Objects, however are the nouns of the language, and
+their behavior is secondary to their existence.
+
+Most people without formal training, and even some with it,
+think that objects are really just bags of data.  Certainly you
+can aggregate data that go together into one object and provide
+a way to deal with those data as an aggregate, but objects can
+do a lot more than that.
+
+Objects are the actors in our plays, which, as programmers, we
+like to call programs.  However, when we start using design
+patterns we really become directors rather than just
+programmers. An opera director, for instance, has to block the
+action of the singers on stage as well as XXX.  Objects are our
+actors.  They carry out functions (as in the XXX pattern),
+watch the state of program (as in the XXX pattern), and XXX. 
+Once we have our cast of objects, it is a simple matter of
+programming to put them together with their script.
+
+        \subsection{Classes}
+
+Classes are the basic unit of modular design.  They define an
+object and its behavior along with rules about how that object
+can interact with its environment and other classes.
+
+        \subsection{Instances}
+
+Instances and the objects themselves.  They describe a particular
+thingy that is of a certain class.
+
+        \subsection{Behavior}
+
+A class defines the behavior of an object, whether that object
+is a class object or an instance object.  By behavior we mean
+more than just what it does when you directly interact with it.
+Objects can also have actions triggered indirectly.
+
+\todo{Perl is not as good as Smalltalk for this, though.}
+
+    \section{Why objects?}
+
+A formal course in objects usually lists three basic attributes of
+an object -- abstraction, encapsulation, and polymorphism.
+
+        \subsection{abstraction}
+
+An object is abstract.  We do not get to play with the data directly
+and must use a defined application programming interface (API) to
+interact with the object.  This has many benefits, the best of which
+might be that everything behind the scenes can change as long as the 
+API stays the same.
+
+        \subsection{encapsulation}
+
+Everything that the object needs to know is contained in itself and
+it is all in one place.
+
+        \subsection{polymorphism}
+
+Polymorphism is the ability of different objects to respond to the
+same method, perhaps in their own way.  For instance, objects of 
+different classes may all have an as\_string method which dumps
+the contents of the object in some human readable form.  We can tell
+if an object an definitely respond to a particular method with UNIVERSAL::can
+which we discuss later.
+
+        \subsection{introspection}
+        
+Introspection is the ability of other thingys to get information
+about objects.
+

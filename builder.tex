@@ -1,0 +1,59 @@
+% $Id$
+\labeledchapter{Builder}
+
+    \section{Abstract}
+
+The internal representation of an object allows the object
+to create different representations of the object.
+
+    \section{When to use an Builder}
+    
+\begin{itemize}
+\item You need to convert one format to one of many other formats.
+\item The representation of the object depends on the state
+of the program
+\item The object might be represented in many ways.
+\item You want to add new representations later without reworking
+the code
+\end{itemize}
+
+	\section{Illustration of use}
+	
+Most web browsers have the ability to save references in a bookmarks
+file so users can quickly access those references.  Most web browsers
+have their own bookmarks format, but users simply care about accessing
+their bookmarks no matter which browser they use, and even where
+they use it.
+
+Netscape Communications Corp. added a roaming access feature to
+Navigator 4.XXX that allowed users to upload or download their bookmarks
+from a central server, called an Roaming Access server. (A Perl
+module on CPAN lets apache handle this).  Once the control of the 
+data was passed off to the central server we could do a lot of
+interesting things with the data.
+
+I wanted to create a bookmark converter so that users could 
+upload their bookmarks file and get it back in a different
+format, whether that format was for another browser or their
+own data format.  I created the Netscape::Bookmarks module
+to parse the Navigator format (so this part was a Reader)
+and create an internal representation.  Once I had the internal
+representation, I created modules (the builders) to make 
+new representations, such as XML, XHTML, comma separated values,
+DBase files, custom HTML pages, and
+relational database tables among others, and many other things.  Once the
+Builder design was in place, creating a new format was simply a
+matter of manipulating the internal representation.  
+
+If I had wanted to go even farther, I could have made similar readers
+for other formats that converted them to the same internal representation.
+Then, any format could be converted to any other. Since Navigator was the
+only browser that would upload bookmarks files, I never got that far.
+
+Jon Bentley's Programming Pearls (notice anything similar?) includes
+an article about the internal representation problem.  Suppose we had
+N formats, which we wanted to convert to any of the other formats.
+If we had explicit algorithms to go directly from one format to 
+another, then we would have to have N(N-1) algorithms.  If everything
+could be converted to a common, intermediate format, then we only
+need N algorithms.  

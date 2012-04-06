@@ -1,0 +1,942 @@
+% $Id$
+\labeledchapter{Singletons}
+
+    \section{Abstract}
+
+A Singleton class creates only one instance
+but allows any part of the program to use that instance.
+
+    \section{When to consider using a Singleton}
+
+You may consider using a Singleton class if your code
+have any of these symptoms:
+
+\begin{itemize}
+    \item You use global variables to pass data or instances
+    between parts of the application.
+    
+    \item You need to control instantiation.
+    
+    \item You need to share a resource that an application uses.
+    
+    \item You create several identical instances in different parts of
+    the program.
+\end{itemize}
+    
+    \section{Motivation}
+
+Some things can or should only be used once in a program.  These
+things might be a particular hardware interface, such as a
+printer connection or serial port, or a software construct such as a
+database connection.  Parts of our program which use those
+resources may not need to know if other parts of the program
+are already using them, or if those resources have already
+been used or have yet to be initialized.  The small part of
+our program that decides it needs to use that resource simply
+uses it.  The singleton pattern works out the sharing so that
+we do not need to do so every time we want to share something,
+and so that we have one place to maintain the code that
+allows the sharing.
+
+    \section{About the pattern}
+    
+The Singleton pattern provides a single point of access to a
+particular instance, and a single point of maintenance.
+
+If we decide to change the behavior of our class, perhaps
+by limiting the total number of uses of the singleton
+instance, or even re-implementing the class to allow more
+than one, but still a limited number of, instances, we only
+need to modify the class. Every program or point in the program
+that uses the singleton will immediately get the benefits of
+change.
+
+    \section{A simple example}
+
+To implement the singleton, we need to know if we have already
+created the instance, and if so, return the same instance.  Otherwise
+we need to create the instance and remember it somehow so we can 
+return it the next time our program requests it.
+
+Let's create a very simple example of a global counter.  Our program
+will be able to access our counter instance to increase or inspect
+its value, and different parts of the program will be able to do this
+without knowing about each other.  If one part of the program adds to
+the counter, the other part of the program using the counter sees the
+effect. 
+
+\begin{quote}    
+\begin{verbatim}
+package Counter;
+
+my $singleton = undef;
+
+sub new
+    {
+    my( $class ) = @_;
+
+    return $singleton if defined $singleton;
+
+    my $self = 0;
+
+    $singleton = bless \$self, $class;
+
+    return $singleton;
+    }
+
+sub value
+    {
+    my $self = shift;
+
+    return $$self;
+    }
+
+sub increment
+    {
+    my $self = shift;
+
+    return ++$$self;
+    }
+
+1;
+\end{verbatim}
+\end{quote}    
+
+In line 3, we declare a lexical variable, \$singleton, in which we
+will store our single instance.  We initialize it to undef so that
+we know we have not created the instance yet.  Now we know how to
+check whether or not we have created the instance -- if \$singleton
+is defined, then it is to our instance.  Furthermore, we scoped the
+variable to our file with my(), so code outside of the file cannot
+affect it.  Indeed, code outside of the class does not even know
+it exists. In other languages, \$singleton might be called a private
+class variable.
+
+The new() function performs all of our magic.  In line 9 we test
+\$singleton to see if it is defined, and if it is we simply return
+its value.  If it is not defined, we have not yet created an instance,
+so we go through the rest of the method to create the instance, 
+store it in \$singleton.
+
+Two other functions, value() and increment(), let us inspect and
+increase the counter by one, respectively.
+
+When we use this module in a program, we do not have to do anything
+special or know anything about how it is implemented.  All we have
+to know is that no matter how many times we try to get an instance
+by calling new(), we will get the same counter, even
+if we do not know that is what we call a ``singleton''.  Here is 
+a short example of the use of our Counter module.
+
+\begin{quote}    
+\begin{verbatim}
+#!/usr/bin/perl
+
+use Counter;
+
+my $count  = Counter->new();
+my $count2 = Counter->new();
+
+print "The counters are the same!\n" if $count eq $count2;
+
+print "Count is now ", $count->increment, "\n";
+print "Count is now ", $count2->increment, "\n";
+print "Count is now ", $count->increment, "\n";
+
+print "Count is now ", $count2->value, "\n";
+
+print "The counters are the same!\n" 
+    if $count->value eq $count2->value;
+\end{verbatim}
+\end{quote}    
+
+We create two counters in lines 7 and 8, although these are really
+the same instance.  In line 10 we compare the two references just to
+prove to ourselves that we have really created a singleton (hint:
+when you write your own test suite, you need to check to make sure
+your singletons are really singletons).
+
+\todo{reference section on comparing objects in first part of book}
+
+Once we have proven to ourselves that \$count and \$count2 are the
+same, we increment the value through \$count and print the results, then do 
+it again with \$count2.  No matter which on we use, the single counter 
+increases by one.
+
+    \section{Using only one database connection}
+
+Suppose that we need to access a database from several
+different parts of our program, perhaps to load
+configuration information when it starts, select some fields based
+on a user query, and insert logging information at the end.
+In a large program, especially one with modular design, these
+functions might live in different modules that handle each of
+those abstractions in a decoupled way.  
+
+We could create a DBI object in each part of the
+program that needs to talk to the database, but we might end
+up with several open database connections.  This
+is one of the symptoms we listed earlier -- several
+identical, or close enough to identical, instances.  
+
+Every time we run our program we take up multiple database
+connections even though we do not need to.  The different
+parts of the program just need to talk to the database
+although they do not need their {\it own} connection.
+
+To
+solve this problem, save ourselves some duplication, and
+reduce our database connection use, we can create a module
+to control instantiation of our database objects so that 
+our program only uses one connection.  We create a module
+named DBI::Singleton which subclasses DBI to control the
+number of instances. In this case we want a single instance.
+
+\begin{quote}    
+\begin{verbatim}
+package DBI::Singleton;
+
+use base qw(DBI);
+
+use DBI;
+
+my $Dbh = undef;
+
+sub connect
+    {
+    my $class = shift;
+    
+    return $Dbh if defined $Dbh;
+    
+    $Dbh = DBI->connect( @_ );
+    }
+\end{verbatim}
+\end{quote}    
+
+This module looks for similar to our Counter module.  We
+store the singleton instance in the lexical variable \$Dbh,
+and connect() is our constructor.  We inherit from DBI in
+line 5, so DBI.pm handles any other methods called on the
+DBI::Singleton instance.  We also rely on DBI to create the
+instance since we call its connect method explicitly.
+
+That is all there is to it for our simple example.  When we
+want a database connection anywhere in our program, we
+simply ask our module for one in the same way that we did if
+we were using the DBI module directly.
+
+\begin{quote}    
+\begin{verbatim}
+my $dbh = DBI::Singleton->connect( @arguments );
+\end{verbatim}
+\end{quote}    
+
+The \$dbh variable stores a DBI instance since we did not
+re-bless it into our DBI::Singleton package.  We can also
+recognize a bit of the Factory and Adapter patterns in
+DBI::Singleton->connect().
+
+How does it work?  We call the connect() method in our
+package.  The first argument is the name of the package,
+DBI::Singleton, which we ignore because we will return a DBI
+instance (see the Factory pattern for more on this). Next,
+we check to see if the variable \$Dbh is defined.  We
+created \$Dbh as a lexical variable with my() which means
+that it is only available inside our file just as in our
+Counter example. If \$Dbh is undefined, we continue through
+the method and connect to the database with the remaining
+arguments left on the stack. We save the return value from
+connect in \$Dbh, which will be a DBI instance if the
+connect succeeds and undef, the original value of \$Dbh, if
+it fails.  We still look in \$DBI::errstr to see what went
+wrong, but we can fix that too, but you have to read on to
+find out how.
+
+Assuming that the connection succeeds, the second time we
+try to connect to the database through DBI::Singleton, \$Dbh
+is defined, so our connect() method returns the remembered
+instance instead of a completely new one. As long as each
+part of the program that needs a database connection uses
+DBI::Singleton->connect(), our program should only ever use
+one database connection.
+
+    \section{Class::Singleton}
+
+Andy Wardley created a base module, Class::Singleton, that
+we can use for any class we intend to be a singleton.  If we
+put Class::Singleton into the inheritance tree of our
+singleton-to-be module by declaring it with {\tt use base}.
+
+\begin{quote}    
+\begin{verbatim}
+package DBI::Singleton;
+
+use base qw(Class::Singleton);
+use vars qw($errstr);
+    
+*errstr = *DBI::errstr;
+
+sub _new_instance
+    {
+    my $class = shift;
+    
+    return DBI->connect(@_);
+    }
+\end{verbatim}
+\end{quote}    
+
+The flow of this method is the same as before, but
+Class::Singleton handles some of the details.  We renamed
+our connect method to \_new\_instance, which is a special
+method that Class::Singleton expects to be in our derived
+class. When we want an instance, we ask our module for one
+using the Class::Singleton method named instance.
+
+\begin{quote}    
+\begin{verbatim}
+my $dbh = DBI::Singleton->instance( @arguments );
+\end{verbatim}
+\end{quote}    
+
+Since the instance method does not exist in our
+DBI::Singleton package, but we inherit from the
+Class::Singleton module, perl uses Class::Singleton's 
+instance() method which does all that magic by looking for
+the method \_new\_instance in our derived class.
+Class::Singleton expects to receive an instance from this
+method, and when it gets the instance, it stores so that the
+next time we call DBI::Singleton->instance() we get the
+remembered instance rather than a new one.
+
+\todo{Reference part of the book that takes about inheritance}
+
+We also fixed our problem with accessing the DBI error
+messages, stored in \$DBI::errstr, by aliasing
+\$DBI::Singleton::errstr to \$DBI::errstr with a little bit
+of typeglob magic.  Accessing either of those variables does
+the same thing.
+
+    \section{Limitations}
+    
+So far our singleton implementations allowed only a single
+instance in the class regardless of the arguments to the
+method we used to get the instance.  We could not get
+another instance by specifying a different argument list
+because once we get the first instance the methods ignore
+the argument list and only returns the instance it created
+before.  The Memoize pattern provides a variation of the
+Singleton pattern that solves this.
+
+We could also modify our singleton classes to allow for more
+than one but still a limited number of instances.  Since we
+control instantiation, we still can decide how to return an
+instance.  We might choose to create several instances to
+connect to different resources, such as different printers,
+slave databases, or mirror web sites, then return the
+instance for the resource that is the least busy, or to
+choose them in a round robin fashion.
+
+Our database example is very simple.  If you need to do this
+sort of thing, read more about it in the Memoized (Modified)
+Singleton pattern, or look at the source for Apache::DBI.
+
+    \section{Other paths to the same thing}
+
+We do not actually have to many other options on
+implementing a singleton.  We have to have ultimate control
+of the instance so other code can not change it, hence
+affecting distant parts of the program, and we need to 
+be able to share it.  Here are some other ways somebody
+(not us) might think to do this, and why these ways fall
+short.
+
+        \subsection{Global variables}
+
+Global variables allow us to pass data throughout a system
+with little care or thought, and to use those data with
+similar lack of care as long as we know the global variable
+name.  In Perl we have an easier time with this since any
+package variable is really a global variable as long as we know
+the package name, and also some
+Perl special variables are always global variables.
+
+However, the value of a global variable is only as good as
+what we last did with it, and as the programmer we can do
+just about anything we like with a global variable including
+changing its value, perhaps to something that makes no
+sense, which changes other parts of our program.  If we
+use an instance to control access to this data, each part of
+the program gets what it expects.  In our examples, we hid
+the data as a lexical variable in our Counter and DBI::Singleton classes
+so that code outside of the file could not affect its value.  Since
+global variables cannot provide this sort of protection, they
+are not a good way to implement.
+
+    \section{Using class methods instead of instances}
+    
+We could create a singleton class that does not use an
+instance.  Instead of instance methods, we could use class
+methods.  This would work adequately for our 
+Counter example since we only need to access the counter's value.
+However, if we implemented our database example with class
+methods, we would connect to the database as before, but the
+return value would not be an instance.  It can be something
+else, although a value that tells us the success or failure
+of the action is simple and useful.  Every time we want to
+call a method on the instance, we have to go through the
+class.  This provides the level of protection we need, but
+can be tedious and unnecessarily complex to implement because
+we have to go through two levels of method calls (one for
+the class and one for the instance) to do what we should be
+able to do directly.
+
+\begin{quote}    
+\begin{verbatim}
+    my $status = DBI::Singleton->connect( @arguments );
+    die "Could not connect to database!" unless $status;
+\end{verbatim}
+\end{quote}
+
+The first time that we call {\tt connect()} the class
+connects to the database and stores the database object in a
+class variable.  Since object oriented programming in Perl
+is flexible, the only thing that is different is that we do
+not return the database handle to the caller.
+
+\todo{EXAMPLE - show the difference}
+
+From there, we have to do more work to get the rest of the
+functionality since we can only call class methods.  For
+instance, if we wanted to make a query, the interface looks
+something like:
+
+\begin{quote}    
+\begin{verbatim}
+DBI::Singleton->query( $query_text );
+\end{verbatim}
+\end{quote}
+    
+We have to create a query method that takes the arguments to
+the class method and translate it into something that the
+database handle behind the scenes can understand.  In our
+instance implementation, the first argument to the method
+was the instance itself, which we called \$self.  When we
+call a class method, the first argument is the name of the
+class, as a string.  In this example, \$class is literally
+'DBI::Singleton'.
+
+\begin{quote}    
+\begin{verbatim}
+sub query
+    {
+    my $class = shift;
+    
+    my $sth = $Dbh->query(@_);
+    
+    return $status;
+    }
+\end{verbatim}
+\end{quote}
+
+Inheritance works as well as class methods and instance
+methods.  Our method does not know the difference without
+inspecting the first argument to the method to determine if
+it is a reference (meaning that it is an instance) or a
+string (meaning that it is a class).  We will look at this
+more in a minute.
+
+    \section{Using functions instead of instances}
+
+We can also implement singletons without any object-oriented
+programming at all.  This has all of the
+problems of using class methods and the only difference is
+that the first argument to all of the functions is not an
+instance or a class name.  We can adapt all of the examples
+in the previous examples by removing all of the lines 'my
+\$class = shift'.
+
+We have to use the functions in a different way than before.
+ In the instance example the perl could find the right
+methods because the constructor had blessed it into a class.
+ Since our database example instance was blessed into DBI,
+when we called a method, like query(), perl knew to look in
+DBI.  In the class example, perl knew where to
+look because the class name was explicitly stated when we
+typed it into the program.  But,if we want to use functions,
+then we have to tell perl how to find the functions and
+data.  We have two options -- give the full package
+specification for the function, like {\tt
+\&DBI::Singleton::connect( @arguments ) } or export (or
+define) the functions into our current package.
+
+The former works out to be the same as the class method
+approach save for the missing class name argument, and it
+has the advantage of showing future maintenance programmers
+from which package the connect() method comes.
+
+The latter option is a bit tricky.  With functions in the
+current package, we have to choose where to store the data
+that will represent the singleton. In the previous example
+we used a lexical variable.  That does not work for us
+anymore because we cannot be sure that we will not
+unintentionally overwrite something in the current package. 
+In short, we will have broken encapsulation and data hiding.
+ If we created our functions in their own package, and then
+exported them, we could explicitly refer to variables in the
+original namespace.
+
+\begin{quote}    
+\begin{verbatim}
+    sub query
+        {
+        $DBI::Singleton::Dbh->query( @_ );
+        }
+\end{verbatim}
+\end{quote}
+
+The disadvantage to this style is that not only do we have a
+lot of extra work to do all of the things that instances and
+classes gave us for free, but we have to expose the innards
+of our singleton module and lose the protection of the
+private variables.
+
+    \section{Using all three}
+    
+Since Perl is not strongly typed, and since all arguments
+are simply passed as a list which is just a bunch of
+scalars, we can, should we have a lot of extra time on our
+hands and nothing better to do, write methods that can
+handle instance methods, class methods, or functions, which
+we present here as merely for amusement, although it
+demonstrates quite a bit of Perl wizardry.  I actually know
+of one senior developer who implemented such a thing for
+some enterprise software.
+
+First, we need to determine which method we are using.  If
+the first argument is an reference to our singleton
+instance, then we use that reference as the instance.  If it
+is a class name, however, we can ignore it.  If it is
+neither, then we can assume we are using the function style.
+ Sound simple?  Not so fast.
+
+How would we figure out if the first argument is an
+instance?  We cannot simply check to see if it is a
+reference, because references can be used for all sorts of
+things.  We also cannot rely on any instance as the first
+argument being the right sort of instance since it might
+actually be the expected argument.  We can check to see if
+the instance belongs to our package with {\tt isa()}.  Even
+if the first argument passes our isa() test, we could still
+be wrong unless we tightly control how the entire interface
+works.
+
+\begin{quote}    
+\begin{verbatim}
+my $object = '';
+
+if( ref $_[0] and $_[0]->isa( __PACKAGE__ );
+    {
+    $object = shift;
+    }        
+\end{verbatim}
+\end{quote}
+        
+The second case expects a string that represents the name of the class,
+and if that is test is true, we use the private class variable, which 
+in our DBI::Singleton example was a \$Dbh;
+
+\begin{quote}    
+\begin{verbatim}
+elsif( $_[0]->isa( __PACKAGE__ ) )
+    {
+    my $class = shift;
+    $object = $Dbh;
+    }
+\end{verbatim}
+\end{quote}
+    
+If none of that works, we can assume that we are using the functional
+mode, and get the instance from the variable in which we stored it.
+
+\begin{quote}    
+\begin{verbatim}
+else
+    {
+    $object = $Dbh;
+    }
+\end{verbatim}
+\end{quote}
+            
+Once we determine how we were called, we can get on with the real work,
+although we have to do a few tricks to support all three methods.
+
+\begin{quote}    
+\begin{verbatim}
+$object->some_other_method
+\end{verbatim}
+\end{quote}
+
+Looking at it written out as code we recognize that we are
+really choosing what \$object will be, which is a just a
+contortion of a switch construct.  Perl does not have an
+explicit switch construct, but we can do just as well with
+a do \{\} block which, like any other block, returns the
+last evaluated expression.
+
+\begin{quote}    
+\begin{verbatim}
+my $instance = do {
+    if( ref $_[0] and $_[0]->isa( __PACKAGE__ );
+        {
+        shift;
+        }        
+    elsif( $_[0]->isa( __PACKAGE__ ) )
+        {
+        my $class = shift;
+        $Dbh;
+        }
+    else
+        {
+        $Dbh;
+        }
+    };    
+\end{verbatim}
+\end{quote}
+
+Putting that into absolutely every method or function, however, 
+would take a lot of typing.  A good text editor could do it
+quickly for you, but  the next person who comes along  and has
+to maintain your code may not have your fancy editor and macros
+so that is not a good idea either.  Any time we have to type the
+same code more than a couple of times it is time for a pattern
+that only requires us to type it once. One way to do this is to 
+use method dispatch.  We write a wrapper that goes around all
+methods and functions that does this bit for us, then returns 
+the right thing for the particular mode.  If you are reading
+this far, you are either on a long plane ride and have already 
+finished the crossword or have nothing better to do so I will
+let you spend the rest of your time figuring out how to use 
+AUTOLOAD to do this.  (Hint: check out the delegation pattern).
+    
+    \section{Singletons with a life span}
+    
+We may want our singletons to disappear after some condition
+is met.  Perhaps a we should replace the single, remembered
+instance after a certain time has elapsed, or at the
+beginning of each new day, or anything else that we can
+dream up.
+
+Suppose that we want our singleton to be recreated if no
+other references to it exist.  For example, we create some
+counters as we did in the first example, and when all of the
+counters are no longer in use, perhaps because they have all
+gone out of scope, the next request for a counter gives a
+completely new instance, or re-initializations the old
+instance, as appropriate.  In our database example we may wish
+to create a new instance if we are disconnected from the 
+database.
+
+Let's look at our Counter example though, which we now want
+to modify so that we only get the same instance as long as 
+some other part of the program is currently using it.  When
+no part of the program is using the Counter instance, that is,
+no other program variables reference it, we want the module
+to create a new one on the next request.
+
+If we count the number of times we return an instance, we know
+how many variables reference our instance (for now, just assume
+that is true).  Let's create a new class
+variable to store the number of references to our singleton
+we think there are. 
+
+\begin{quote}    
+\begin{verbatim}
+package Counter;
+
+my $singleton       = undef;
+my $reference_count = 0;
+
+sub new
+    {
+    my( $class ) = @_;
+
+    if( defined $singleton and $reference_count > 0 )
+        {
+        $reference_count++;
+        return $singleton;
+        }
+
+    my $self = 0;
+
+    $singleton = bless \$self, $class;
+
+    $reference_count = 1;
+    
+    return $singleton;
+    }
+        
+sub reference_count
+    {
+    return $reference_count;
+    }
+    
+sub value
+    {
+    my $self = shift;
+
+    return $$self;
+    }
+
+sub increment
+    {
+    my $self = shift;
+
+    return ++$$self;
+    }
+
+1;
+\end{verbatim}
+\end{quote}    
+
+In new() we moved things around so that we could count the number
+of times we returned a reference to our instance, which we store
+in \$reference\_count, and we added a class (and instance) method to return 
+the number of references to the singleton. 
+
+Now we need to know when the use of a particular reference to our counter has ended so that
+\$reference\_count reflects reality.  We cannot use DESTROY since it 
+only works on the singleton instance
+when there are no more references to it, but there is always a 
+reference to it since the class variable, \$singleton, always exists. We could
+state explicitly that we have finished using a reference by calling another
+method, perhaps called destroy().
+
+\begin{quote}    
+\begin{verbatim}
+$count3->destroy;
+\end{verbatim}
+\end{quote}    
+
+Our own version of DESTROY which we have to call explicitly, 
+decrements the reference count and sets the caller to undef.
+
+\begin{quote}    
+\begin{verbatim}
+sub destroy
+    {
+    $_[0] = undef;
+    $reference_count--;
+    }
+\end{verbatim}
+\end{quote}    
+
+\begin{quote}    
+\begin{verbatim}
+
+This is not good enough because we have to pay extra attention
+to make sure that we call _destroy explicitly and at the right
+place in the program and at the right time.
+
+\begin{quote}    
+\begin{verbatim}
+my $count = Counter->new();
+
+$count->increment;
+$count->value;
+
+... stuff ...
+
+$count->destroy;
+\end{verbatim}
+\end{quote}    
+
+
+This still isn't good enough because we do not really know
+when a particular use of the singleton has ended -- we only
+know when the programmer has remembered to tell us he has
+finished.  Suppose that we created a lexical counter, and
+let the counter go out of scope without calling destroy():
+
+\begin{quote}    
+\begin{verbatim}
+if( some condition )
+    {
+    my $counter = Counter->new();
+    
+    $counter->increment;
+    
+    ...stuff... 
+
+    $counter->increment;
+    }
+\end{verbatim}
+\end{quote}    
+        
+Now we have no way to decrement \$reference\_count because \$counter
+no longer exists.
+
+We also have no way to keep the programmer from making direct,
+shallow copies of the instance which we will not be able to count,
+and we cannot (very easily) recognize the use of new() in a
+void context, so even though we do not use another reference to
+the instance, new() thinks we did and increments \$reference\_count.
+
+\begin{quote}    
+\begin{verbatim}
+my $count = Counter->new();
+
+# we do not know this happened
+my $count2 = $count;
+
+# new() thinks we stored the return value
+Counter->new();
+\end{verbatim}
+\end{quote}    
+
+We can improve this technique with a little black magic.
+Perl already counts the number of references for each
+variable.  Perl's reference count will take into account
+lexical variables going out of scope, void contexts, and it
+will do it without our intervention.  If we can look at this
+reference count then we do not have to count the references
+ourselves.
+
+One way to look at the reference count is to use the
+SvREFCNT function from Devel::Peek, which gives us the
+number of references to its arguments.  Although a lot of
+people think that Devel::Peek is an unreasonable
+prerequisite for production code, and I am inclined to
+agree.  Devel::* modules are for development, in my opinion,
+but we can use it to get where we need to be, and I would
+not show this to you if I did not have something even better
+to replace it. So, if we decide to use Devel::Peek, the
+beginning of our module looks like:
+
+\begin{quote}    
+\begin{verbatim}
+package Counter;
+
+use Devel::Peek qw(SvREFCNT);
+
+my $singleton;
+
+sub new
+    {
+    my( $class ) = @_;
+
+    if( defined $singleton and SvREFCNT($singleton) > 1 )
+        {
+        return $singleton;
+        }
+
+    my $self = 0;
+
+    $singleton = bless \$self, $class;
+
+    return $singleton;
+    }
+\end{verbatim}
+\end{quote}    
+
+We can get rid of anything that deals with
+\$reference\_count since perl keeps track of that for us. 
+After we check to see if \$singleton is defined, we also
+check to see how many references to it there are.
+Remembering that \$singleton itself counts for one
+reference, we test to see if there is more than one.  If so,
+there is another reference somewhere in the program.
+
+If we were really ambitious (or crazy), we could even
+implement the reference count code ourselves in XS code as
+part of our module and avoid Devel::Peek entirely.
+
+\begin{quote}    
+\begin{verbatim}
+int
+ref_count(sv)
+   SV* sv;
+
+   CODE:
+
+      RETVAL = SvREFCNT(sv);
+
+   OUTPUT: RETVAL
+\end{verbatim}
+\end{quote}    
+
+Some of you might be thinking why we are not using the
+WeakRef, since it makes all of this stuff much easier and we
+do not have to use the Devel::Peek or XS.  The author has
+marked WeakRef as experimental.  Interestingly, it was
+originally written so that the author could avoid all of the
+reference counting quackery we just went through because it
+allows Perl to ignore that fact that \$singleton counts
+as one reference and DESTROY it when nothing else references
+it.
+
+If we want to use WeakRef, the only thing we have to do is
+weaken \$singleton, which signals to  Perl that \$singleton
+will not count its
+existence in the reference count. When all of the other,
+``strong'' references to \$singleton disappear through Perl's
+normal behavior, \$singleton will be garbage collected and
+we can use DESTROY to do anything that we need to do.  Afterwards,
+\$singleton will be undefined and the next time we try to 
+get an instance we will get a completely new one.
+
+\todo{MAYBE WE SHOULD HAVE A PERL GRAPHICAL STRUCTURE HERE.}
+
+\begin{quote}    
+\begin{verbatim}
+package Counter;
+
+use WeakRef;
+
+my $singleton = undef;
+
+sub new
+    {
+    my( $class, $count ) = @_;
+
+    if( defined $singleton )
+        {
+        return $singleton;
+        }
+
+    my $self = 0;
+
+    $singleton = bless \$self, $class;
+
+    weaken $singleton;
+
+    return $singleton;
+    }
+\end{verbatim}
+\end{quote}    
+
+We weaken \$singleton in line X with the weaken() function
+from WeakRef.  This tells perl not to count the existence of
+\$singleton in the reference count to the data which it
+represents.  Other references to that data, like the
+reference that we get back from new(), do count.  When all
+of those references disappear, perl undefines \$singleton.
+
+\section{Perl Modules that implement the Singleton pattern}
+
+\subsection{Win32::TieRegistry}
+
+The Microsoft Windows Registry is a collection of tree data structures,
+which we can also call a forest.  Every recent Microsoft desktop
+operating system has a registry where it stores useful information about
+the operation of the computer.  Other parts of the system, including applications,
+can read and write to this registry.  Although it is dangerous to change parts
+of the registry on which the operating system depends, it is useful for applications
+to store some of their own information in the registry.
+
+The operating system has only one registry which all of the applications and processes
+share.  Accessing the Registry perfectly describes the Singleton pattern -- many
+processes sharing one resource.
+
+In Win32::TieRegistry, the Registry is represented by a class variable
+\$Registry which is set up when the module is first loaded, and exported
+by default. All subsequent uses access the same \$Registry.

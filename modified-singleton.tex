@@ -1,0 +1,146 @@
+% $Id$
+\labeledchapter{Memoized (Modified) Singleton}
+
+    \section{Abstract}
+
+For the same arguments, the constructor returns the same instance.
+
+    \section{When to memoize}
+    
+You may consider using a Singleton class if your code
+have any of these symptoms:
+
+\begin{itemize}
+\item You get an identical instance given the same arguments,
+but different instances for different arguments
+\item You try to use the singleton pattern, and it gets you
+most of the way there, but not all the way
+\end{itemize}
+
+    \section{Motivation}
+    
+The singleton pattern allowed us global access through a single
+instance, although that instance could have different names in 
+the program.  The Memoized singleton pattern modifies that so
+the same list of arguments to the method that returns that
+instance gets the same instance, while a different list may
+return a wholly different instance.  The pure singleton solved
+our sharing problems with something that exists singly like a
+printer or the syslog.  The Memoized singleton shares things that
+may exist multiply, like configuration files or output filehandles,
+which should be shared if two parts of our program want to share
+the same one.
+
+    \section{A simple example}
+    
+Once we have read and parsed a configuration file, we should not
+have to do it again, although if we need to use it in different
+parts of the program, we should not have to do too much work
+to do that.  It sounds like we should use a singleton to represent
+the configuration file.  If we used a pure singleton in which the 
+class can only have one instance, then we can only have one configuration
+file.  What if we need to look at multiple files, like .profile and .bash\_profile
+when we login to a bash shell, or httpd.conf, access.conf, and srm.conf
+from apache?  A pure singleton will not allow us to represent each of
+these at the same time from the same class, although they represent the
+same concept.
+
+What we want is only one instance for each configuration file so that
+if we have already parsed the file, we skip all of that work and 
+simply access the information.  To do this, we need to remember which 
+files we have already seen. We can modify are previous singleton
+examples to use a hash instead of a scalar to remember our instances.
+They key of the hash will be the name of the configuration file, and
+its value will be the configuration file instance that goes with it.
+
+Let's override the new() method from ConfigReader::Simple, available
+on CPAN, to do this.  Our memoized version of new() turns ConfigReader::Simple
+into a singleton class.
+
+\begin{quote}    
+\begin{verbatim}
+package Config::Singleton;
+
+use base qw(ConfigReader::Simple);
+
+my \%Configs = ();
+
+sub new
+    {
+    my( $class, $file, @args ) = @_;
+    
+    return $Configs{$file} if exists $Configs{$file};
+    
+    my $object = $class->SUPER::new( $file );
+    return $object unless ref $object;
+    
+    $Configs{$file} = $object
+    }
+\end{verbatim}
+\end{quote}
+    
+\todo{EXPLAIN CODE HERE}
+
+    \section{Connecting to multiple databases}
+    
+In our pure singleton example we shared a single database connection.
+The first time that the program asked to connect to the database our
+connect() method passed the argument list on to the DBI->connect()
+method, then saved the returned database handle if the connect() 
+succeed.  Each subsequent time we tried to connect we got a reference
+to the same database connection even if we had asked to connect to
+a different database.  We had simply ignored the arguments altogether.
+However, its completely reasonable  to connect to multiple
+databases, or the same database multiply, in certain situations.  I have
+frequently kept two database handles active as I read from one to write
+to the other.
+
+We need to modify our connect() method in the DBI::Singleton package and we have 
+to modify our \$Dbh to store multiple database handles.  However, this
+situation is much more complicated than our single argument example.  How
+do we recognize that two argument lists are the same?  We cannot use
+a list of the key for a hash.  We could serialize the list so that
+we end up with a string, perhaps with something like
+
+\begin{quote}
+\begin{verbatim}
+my $key = join "\0", @_;
+\end{verbatim}
+\end{quote}
+    
+but what if the character "\\0" is a valid within the data?  It is improbable
+that we will experience a collision with this technique, but it is certainly
+possible.  How would be differentiate between the list ( "a\\0", "b" ) and
+( "a", "\\0b" ) ?
+
+    
+For most of the cases in which we would select a Memoized Singleton, the
+Memoize module available on CPAN will do all of the hard work for us.  It will
+digest the argument lists and store the return values for each.  We
+simply tell Memoize which methods to affect, then move on to the next
+programming problem  In this case we only
+have to memoize the constructor, which is a class method (so the first
+argument is always the class name).     
+
+    \section{Full example with database connections}
+    
+\todo{Full example code}
+
+    \section{Apache::DBI}
+    
+Before mod\_perl, one of the problems with web databases was that each
+CGI script needed its own connection to a database, and setting up
+that connection could be the major bottleneck in the program making the
+web site seem slow.  The mod\_perl extension to Apache solved many of
+the performance problems with CGI scripts (which you can read about elsewhere),
+but you still had to connect to the database.  Since mod\_perl processes stayed
+in memory between web requests, everything that needed a database connection
+maintained an open database connection, causing resource use problems.
+
+The mod\_perl folks solved that problem with Apache::DBI which is an 
+example of a memoized singleton.  For each unique list of arguments,
+Apache::DBI stores one database connection that all parts of the 
+process can share.  It even pings the database for you and re-establishes
+the connection if need be.  You might already use Apache::DBI without 
+knowing it since DBI looks for it when it is loaded, and will forward
+connection requests to Apache::DBI if it is already loaded.
